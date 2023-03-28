@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::{
-    entity::MinionMut,
+    entity::{Minion, MinionMut},
     generic::pathfinding::{PathfindingComponent, LANE_PATHS},
 };
 
@@ -93,12 +93,13 @@ impl EntityStore {
             })
     }
 
-    pub fn minions_mut(&mut self) -> impl Iterator<Item = MinionMut<'_>> {
-        let mut storeref = unsafe { NonNull::new_unchecked(self) };
-        self.minions
-            .iter()
-            .map(move |(_, (id, _))| unsafe { storeref.as_mut() }.get_minion_mut(id.clone()))
-            .flatten()
+    pub fn get_minion(&self, id: impl Into<UnitId>) -> Option<Minion<'_>> {
+        self.get_raw_by_id(id.into()).and_then(|entity| {
+            entity.is_minion().then_some(Minion {
+                store: self,
+                entity,
+            })
+        })
     }
 
     pub fn get_raw_by_id(&self, id: UnitId) -> Option<&Entity> {
@@ -137,5 +138,20 @@ impl EntityStore {
         }
 
         Ok(entity.guid)
+    }
+
+    pub fn minions(&self) -> impl Iterator<Item = Minion<'_>> {
+        self.minions
+            .iter()
+            .map(|(_, (id, _))| self.get_minion(id.clone()))
+            .flatten()
+    }
+
+    pub fn minions_mut(&mut self) -> impl Iterator<Item = MinionMut<'_>> {
+        let mut storeref = unsafe { NonNull::new_unchecked(self) };
+        self.minions
+            .iter()
+            .map(move |(_, (id, _))| unsafe { storeref.as_mut() }.get_minion_mut(id.clone()))
+            .flatten()
     }
 }

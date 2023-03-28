@@ -7,7 +7,7 @@ use iced::{
     Point, Rectangle,
 };
 
-use engine::GameState;
+use engine::{GameState, MinimapEngine, ecs::{store::EntityStore, entity::EntityRef}};
 
 use crate::{information::Card, Message};
 // use crate::wave::WaveSpawnerState;
@@ -28,11 +28,12 @@ pub const MAP_BOUNDS: Rectangle = Rectangle {
 
 pub struct Minimap<'a> {
     gamestate: &'a GameState,
+    store: &'a EntityStore
 }
 
 impl<'a> Minimap<'a> {
-    pub fn new(gamestate: &'a GameState) -> Self {
-        Self { gamestate }
+    pub fn new(gamestate: &'a GameState, store: &'a EntityStore) -> Self {
+        Self { gamestate, store }
     }
 
     fn draw_map(&self, frame: &mut Frame) {
@@ -207,7 +208,7 @@ impl Program<Message> for Minimap<'_> {
         let mut frame = Frame::new(MAP_BOUNDS.size());
         frame.scale(bounds.width / MAP_BOUNDS.width);
         self.draw_map(&mut frame);
-
+/*
         self.gamestate
             .blue
             .waves()
@@ -217,7 +218,17 @@ impl Program<Message> for Minimap<'_> {
             .red
             .waves()
             .for_each(|ws| ws.draw(&mut frame, self.gamestate));
+*/
+        for minion in self.store.minions() {
+            let pos = minion.position();
+            let radius = minion.radius();
 
+            frame.fill(
+                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
+                iced::Color::from_rgb8(80, 80, 80),
+            );
+        }      
         vec![frame.into_geometry()]
+        
     }
 }

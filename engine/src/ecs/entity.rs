@@ -248,6 +248,23 @@ impl Inhibitor<'_> {
     }
 }
 
+
+pub struct Minion<'store> {
+    pub(crate) store: &'store crate::ecs::store::EntityStore,
+    pub(crate) entity: &'store Entity,
+}
+
+
+impl<'store> EntityRef<'store> for Minion<'store> {
+    fn store_ref(&self) -> &'store EntityStore {
+        self.store
+    }
+    fn entity(&self) -> &'store Entity {
+        self.entity
+    }
+}
+
+
 pub struct MinionMut<'store> {
     pub(crate) store: &'store mut crate::ecs::store::EntityStore,
     pub(crate) entity: std::ptr::NonNull<Entity>,

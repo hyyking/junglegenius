@@ -9,7 +9,7 @@ use crate::{
 pub struct WaveSpawner {
     team: Team,
     lane: Lane,
-    current_timer: GameTimer,
+    pub current_timer: GameTimer,
 }
 
 impl WaveSpawner {
@@ -50,6 +50,7 @@ impl WaveSpawner {
             ranged: 3,
             superm,
         })
+        
     }
 }
 

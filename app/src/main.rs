@@ -2,6 +2,9 @@
 
 use std::time::Duration;
 
+use engine::MinimapEngine;
+use engine::ecs::builder::EntityStoreBuilder;
+use engine::ecs::store::EntityStore;
 use iced::widget::canvas;
 use iced::widget::{column, container, image, slider, text};
 use iced::{Element, Length, Point, Sandbox, Settings};
@@ -43,6 +46,9 @@ pub struct Slider {
     gamestate: GameState,
     current_point: Option<Point>,
     cards: Vec<Card>,
+
+    store: EntityStore,
+    engine: MinimapEngine,
 }
 
 impl Sandbox for Slider {
@@ -51,12 +57,32 @@ impl Sandbox for Slider {
     fn new() -> Slider {
         let slider_value = 60;
         let gamestate = GameState::from_secs(slider_value as usize);
+        
+        let mut builder = EntityStoreBuilder::new();
+        let mut engine = MinimapEngine {
+            timer: GameTimer::GAME_START,
+            wave_spawners: [
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Top),
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Mid),
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Bot),
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Top),
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Mid),
+                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Bot),
+            ],
+        };
+        engine::Engine::on_start(&mut engine, &mut builder);
+        let mut store = builder.build();
+
+        engine::Engine::on_step(&mut engine, &mut store, GameTimer(Duration::from_secs(slider_value as u64)));
+
 
         Slider {
             slider_value,
             cards: vec![],
             current_point: None,
             gamestate,
+            engine,
+            store,
         }
     }
 
@@ -74,6 +100,8 @@ impl Sandbox for Slider {
                         Duration::from_secs(u64::from(value - self.slider_value)),
                         |_| {},
                     );
+
+                    engine::Engine::on_step(&mut self.engine, &mut self.store, GameTimer(Duration::from_secs(u64::from(value - self.slider_value))));
                 }
 
                 if self.gamestate.timer == GameTimer(Duration::from_secs(2 * 60)) {
@@ -149,6 +177,7 @@ impl Sandbox for Slider {
 
         let overlay = canvas(minimap::Minimap::new(
             &self.gamestate,
+            &self.store
         ));
 
         let widget = map_overlay::MapWidget::new(

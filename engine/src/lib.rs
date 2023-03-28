@@ -36,7 +36,7 @@ pub trait Engine {
 
 pub struct MinimapEngine {
     pub timer: GameTimer,
-    wave_spawners: [WaveSpawner; 6],
+    pub wave_spawners: [WaveSpawner; 6],
 }
 
 impl Engine for MinimapEngine {
@@ -89,9 +89,10 @@ impl Engine for MinimapEngine {
             for wave in spawner.waves(&new_timer, 0) {
                 for minion in wave.minions(&new_timer) {
                     store.spawn_minion(minion.team, wave.lane, minion.ty);
-                    // todo!("Add a minion builder for the spawner")
+                    // todo!("Add a Wave builder builder for the spawner")
                 }
             }
+            spawner.current_timer = new_timer; // TODO: remove dis
         }
 
         self.timer = new_timer;
