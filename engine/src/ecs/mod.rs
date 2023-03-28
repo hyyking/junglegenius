@@ -71,6 +71,15 @@ impl UnitId {
         self.0 == 0
     }
 
+    fn team(&self) -> Option<Team> {
+        let masked = self.0 & 0b1111;
+        match masked {
+            1 => Some(Team::Blue),
+            2 => Some(Team::Red),
+            _ => None,
+        }
+    }
+
 
 }
 

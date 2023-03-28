@@ -1,5 +1,7 @@
 use rstar::primitives::GeomWithData;
 
+use crate::core::Team;
+
 use super::{
     generic::{pathfinding::PathfindingComponent, PositionComponent},
     store::EntityStore,
@@ -86,6 +88,10 @@ pub trait EntityRef<'store> {
 
     fn guid(&self) -> UnitId {
         self.entity().guid
+    }
+
+    fn team(&self) -> Option<Team> {
+        self.entity().guid.team()
     }
 
     fn position(&self) -> &'store lyon::math::Point {

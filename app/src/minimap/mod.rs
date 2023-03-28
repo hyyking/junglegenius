@@ -9,7 +9,7 @@ use iced::{
 
 use engine::{GameState, MinimapEngine, ecs::{store::EntityStore, entity::EntityRef}};
 
-use crate::{information::Card, Message};
+use crate::{information::Card, Message, utils};
 // use crate::wave::WaveSpawnerState;
 
 pub mod geometry;
@@ -222,10 +222,14 @@ impl Program<Message> for Minimap<'_> {
         for minion in self.store.minions() {
             let pos = minion.position();
             let radius = minion.radius();
-
+            let team = if let Some(team) = minion.team() {
+                utils::team_color(team)
+            } else {
+                iced::Color::from_rgb8(80, 80, 80)
+            };
             frame.fill(
                 &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
-                iced::Color::from_rgb8(80, 80, 80),
+                team,
             );
         }      
         vec![frame.into_geometry()]
