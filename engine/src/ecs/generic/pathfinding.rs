@@ -38,9 +38,9 @@ impl Index<(Team, Lane)> for LanePaths {
 }
 
 pub struct PathfindingComponent {
-    path: Pathfinding,
-    position: f32,
-    speed: f32,
+    pub(crate) path: Pathfinding,
+    pub(crate) position: f32,
+    pub(crate) speed: f32,
 }
 
 impl PathfindingComponent {

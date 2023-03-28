@@ -13,7 +13,7 @@ pub mod wave;
 pub mod event;
 
 pub use ecs::structures;
-use ecs::structures::InhibitorIndex;
+use ecs::{structures::InhibitorIndex, entity::EntityMut};
 pub use ecs::unit;
 use ecs::GameObject;
 use wave::WaveSpawner;
@@ -25,7 +25,7 @@ use crate::{
     event::{Event, EventConsumer, EventProducer},
     mapside::MapSide,
     structures::{Inhibitor, Turret, TurretIndex},
-    wave::WaveStates,
+    wave::WaveStates, ecs::entity::{EntityRefCrateExt, EntityRef},
 };
 
 pub trait Engine {
@@ -75,20 +75,25 @@ impl Engine for MinimapEngine {
     fn on_step(&mut self, store: &mut crate::ecs::store::EntityStore, step: GameTimer) {
         let new_timer = self.timer + step;
 
+        
+        for id in store.minions.clone().iter().map(|m| m.1.0) {
+            let mut minion = store.get_minion_mut(id).expect("minion?");
+            match minion.pathfind_for_duration(step) {
+                Ok(_) => {},
+                Err(ecs::entity::PathfindError::EndReached(_)) => todo!("TODO: add unit removal"),
+            }
+            
+        }
+
         for spawner in self.wave_spawners.iter_mut() {
             for wave in spawner.waves(&new_timer, 0) {
                 for minion in wave.minions(&new_timer) {
                     store.spawn_minion(minion.team, wave.lane, minion.ty);
-                    // TODO:
-                    // Add a pathfinding component such that entities will update their positions using the path stored in this component
-                    // The pathfinding component should be present for all unit.
-                    // It could take different values:
-                    // Static: no pathfinding
-                    // Persistent: precomputed paths such as minion paths, theses paths are never updated and can be shared between units
-                    // Dynamic: path that exists from GameTimer a to GameTimer b
+                    todo!("Add a minion builder for the spawner")
                 }
             }
         }
+
 
         self.timer = new_timer;
     }
@@ -307,7 +312,7 @@ fn run_engine() {
 
     let mut store = store.build();
 
-/*
+    /*
     use crate::ecs::Unit;
     let turret = store.get_turret(TurretIndex::BLUE_TOP_INHIB).unwrap();
     let inhib = store.get_inhib(InhibitorIndex::BLUE_TOP).unwrap();
@@ -323,6 +328,19 @@ fn run_engine() {
         dbg!(store.get_raw_by_id(guid));
     }
      */
-    engine.on_step(&mut store, GameTimer::FIRST_SPAWN + GameTimer(Duration::from_secs(1)));
-    dbg!(store.minions);
+    engine.on_step(
+        &mut store,
+        GameTimer::FIRST_SPAWN + GameTimer(Duration::from_secs(1)),
+    );
+
+    let before: Vec<_> = store.minions.clone().iter().map(|(_, (id, _))| *id).map(|id| store.get_minion_mut(id).unwrap().position().clone()).collect();
+    dbg!(&before[0]);
+
+    engine.on_step(
+        &mut store,
+        GameTimer(Duration::from_secs(10)),
+    );
+
+    let after: Vec<_> = store.minions.clone().iter().map(|(_, (id, _))| *id).map(|id| store.get_minion_mut(id).unwrap().position().clone()).collect();
+    dbg!(&after[0]);
 }
