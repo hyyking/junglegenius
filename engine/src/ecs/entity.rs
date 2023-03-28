@@ -104,11 +104,11 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
 }
 
 pub(crate) trait EntityMutCrateExt<'store>: EntityMut<'store> {
-    fn position_component_mut(&mut self) -> &'store mut PositionComponent {
+    fn position_component_mut(&self) -> &'store mut PositionComponent {
         self.entity().get_position_mut(self.store_mut())
     }
 
-    fn pathfinding_component_mut(&mut self) -> &'store mut PathfindingComponent {
+    fn pathfinding_component_mut(&self) -> &'store mut PathfindingComponent {
         self.entity().get_pathfinding_mut(self.store_mut())
     }
 }
@@ -121,9 +121,9 @@ pub enum PathfindError {
 }
 
 pub trait EntityMut<'store>: EntityRef<'store> {
-    fn store_mut(&mut self) -> &'store mut EntityStore;
+    fn store_mut(&self) -> &'store mut EntityStore;
 
-    fn move_to(&mut self, to: lyon::math::Point) {
+    fn move_to(&self, to: lyon::math::Point) {
         let store = self.store_mut();
 
         let to = PositionComponent {
@@ -137,7 +137,7 @@ pub trait EntityMut<'store>: EntityRef<'store> {
     }
 
     fn pathfind_for_duration(
-        &mut self,
+        &self,
         duration: crate::core::GameTimer,
     ) -> Result<Option<lyon::math::Point>, PathfindError> {
         let component = self.pathfinding_component_mut();
@@ -180,6 +180,10 @@ pub trait EntityMut<'store>: EntityRef<'store> {
                 )
             }
         }
+    }
+
+    fn delete(self) -> Result<UnitId, ()> where Self: Sized {
+        self.store_mut().remove_by_id(self.guid())
     }
 }
 
@@ -259,8 +263,8 @@ impl<'store> EntityRef<'store> for MinionMut<'store> {
 }
 
 impl<'store> EntityMut<'store> for MinionMut<'store> {
-    fn store_mut(&mut self) -> &'store mut EntityStore {
-        unsafe { &mut *(self.store as *mut _) }
+    fn store_mut(&self) -> &'store mut EntityStore {
+        unsafe { &mut *(self.store as *const _ as *mut _) }
     }
 }
 

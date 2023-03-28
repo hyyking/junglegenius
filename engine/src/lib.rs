@@ -13,7 +13,7 @@ pub mod wave;
 pub mod event;
 
 pub use ecs::structures;
-use ecs::{structures::InhibitorIndex, entity::EntityMut};
+
 pub use ecs::unit;
 use ecs::GameObject;
 use wave::WaveSpawner;
@@ -22,10 +22,11 @@ use std::time::Duration;
 
 use crate::{
     core::{GameTimer, Lane, Team},
+    ecs::{entity::EntityMut, structures::InhibitorIndex},
     event::{Event, EventConsumer, EventProducer},
     mapside::MapSide,
     structures::{Inhibitor, Turret, TurretIndex},
-    wave::WaveStates, ecs::entity::{EntityRefCrateExt, EntityRef},
+    wave::WaveStates,
 };
 
 pub trait Engine {
@@ -75,25 +76,23 @@ impl Engine for MinimapEngine {
     fn on_step(&mut self, store: &mut crate::ecs::store::EntityStore, step: GameTimer) {
         let new_timer = self.timer + step;
 
-        
-        for id in store.minions.clone().iter().map(|m| m.1.0) {
-            let mut minion = store.get_minion_mut(id).expect("minion?");
+        for minion in store.minions_mut() {
             match minion.pathfind_for_duration(step) {
-                Ok(_) => {},
-                Err(ecs::entity::PathfindError::EndReached(_)) => todo!("TODO: add unit removal"),
+                Ok(_) => {}
+                Err(ecs::entity::PathfindError::EndReached(_)) => {
+                    minion.delete().map(drop).expect("can't delete minion")
+                }
             }
-            
         }
 
         for spawner in self.wave_spawners.iter_mut() {
             for wave in spawner.waves(&new_timer, 0) {
                 for minion in wave.minions(&new_timer) {
                     store.spawn_minion(minion.team, wave.lane, minion.ty);
-                    todo!("Add a minion builder for the spawner")
+                    // todo!("Add a minion builder for the spawner")
                 }
             }
         }
-
 
         self.timer = new_timer;
     }
@@ -295,6 +294,7 @@ fn run_gamestate() {
 #[test]
 fn run_engine() {
     use ecs::builder::EntityStoreBuilder;
+    use ecs::entity::EntityRef;
 
     let mut store = EntityStoreBuilder::new();
     let mut engine = MinimapEngine {
@@ -333,14 +333,26 @@ fn run_engine() {
         GameTimer::FIRST_SPAWN + GameTimer(Duration::from_secs(1)),
     );
 
-    let before: Vec<_> = store.minions.clone().iter().map(|(_, (id, _))| *id).map(|id| store.get_minion_mut(id).unwrap().position().clone()).collect();
+    let before: Vec<_> = store
+        .minions_mut()
+        .map(|minion| (minion.guid(), minion.position()))
+        .collect();
     dbg!(&before[0]);
 
-    engine.on_step(
-        &mut store,
-        GameTimer(Duration::from_secs(10)),
-    );
+    engine.on_step(&mut store, GameTimer(Duration::from_secs(10)));
 
-    let after: Vec<_> = store.minions.clone().iter().map(|(_, (id, _))| *id).map(|id| store.get_minion_mut(id).unwrap().position().clone()).collect();
+    let after: Vec<_> = store
+        .minions_mut()
+        .map(|minion| (minion.guid(), minion.position()))
+        .collect();
     dbg!(&after[0]);
+
+    engine.on_step(&mut store, GameTimer(Duration::from_secs(60)));
+
+    let removed_after: Vec<_> = store
+        .minions_mut()
+        .map(|minion| (minion.guid(), minion.position()))
+        .collect();
+
+    dbg!(&removed_after[0]);
 }

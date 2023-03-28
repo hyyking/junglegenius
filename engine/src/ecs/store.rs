@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ptr::NonNull};
 
 use rstar::primitives::GeomWithData;
 
@@ -23,15 +23,15 @@ use super::{
 type PointId = rstar::primitives::GeomWithData<PositionComponent, UnitId>;
 type WithId<T> = (UnitId, T);
 
-
-
 pub struct EntityStore {
     pub(crate) entities: HashMap<UnitId, Entity>,
     pub(crate) position: slab::Slab<WithId<PositionComponent>>,
+    pub(crate) pathfinding: slab::Slab<WithId<PathfindingComponent>>,
+
     pub(crate) turret: slab::Slab<WithId<TurretComponent>>,
     pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
-    pub(crate) pathfinding: slab::Slab<WithId<PathfindingComponent>>,
+
     pub(crate) tree: rstar::RTree<PointId>,
 }
 
@@ -46,8 +46,7 @@ impl EntityStore {
             radius: kind.radius(),
         };
 
-        let pathfinding =
-            PathfindingComponent::persistent(path, 325.0); // TODO: Adjust speed
+        let pathfinding = PathfindingComponent::persistent(path, 325.0); // TODO: Adjust speed
 
         let specific = MinionComponent { kind };
 
@@ -94,6 +93,14 @@ impl EntityStore {
             })
     }
 
+    pub fn minions_mut(&mut self) -> impl Iterator<Item = MinionMut<'_>> {
+        let mut storeref = unsafe { NonNull::new_unchecked(self) };
+        self.minions
+            .iter()
+            .map(move |(_, (id, _))| unsafe { storeref.as_mut() }.get_minion_mut(id.clone()))
+            .flatten()
+    }
+
     pub fn get_raw_by_id(&self, id: UnitId) -> Option<&Entity> {
         if id.is_null() {
             return None;
@@ -106,5 +113,29 @@ impl EntityStore {
             return None;
         }
         self.entities.get_mut(&id)
+    }
+
+    pub fn remove_by_id(&mut self, id: UnitId) -> Result<UnitId, ()> {
+        let entity = self.entities.remove(&id).ok_or(())?;
+
+        let (id, pos) = self.position.try_remove(entity.position).ok_or(())?;
+        self.tree.remove(&GeomWithData::new(pos, id)).ok_or(())?;
+
+        self.pathfinding.try_remove(entity.pathfinding).ok_or(())?;
+
+        match entity.specific {
+            SpecificComponent::None => {}
+            SpecificComponent::Turret(key) => {
+                self.turret.try_remove(key).ok_or(())?;
+            }
+            SpecificComponent::Inhibitor(key) => {
+                self.inhibitor.try_remove(key).ok_or(())?;
+            }
+            SpecificComponent::Minion(key) => {
+                self.minions.try_remove(key).ok_or(())?;
+            }
+        }
+
+        Ok(entity.guid)
     }
 }
