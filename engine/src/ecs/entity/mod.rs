@@ -70,7 +70,7 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
         &self.store_ref().position[self.entity().position].1
     }
 
-    fn get_pathfinding(&self) -> &'store PathfindingComponent {
+    fn pathfinding_component(&self) -> &'store PathfindingComponent {
         &self.store_ref().pathfinding[self.entity().pathfinding].1
     }
 
