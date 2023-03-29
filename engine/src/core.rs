@@ -10,7 +10,7 @@ use lyon::{
 };
 
 use crate::{
-    structures::{nexus::Nexus, TurretIndex},
+    structures::{old_nexus::Nexus, TurretIndex},
     ecs::Unit,
 };
 
@@ -18,6 +18,14 @@ use crate::{
 pub enum Team {
     Red,
     Blue,
+}
+impl Team {
+    pub(crate) fn opposite(&self) -> Team {
+        match self {
+            Team::Red => Team::Blue,
+            Team::Blue => Team::Red,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
@@ -84,6 +92,7 @@ impl Add for GameTimer {
         Self(self.0.saturating_add(rhs.0))
     }
 }
+
 
 impl Add<&GameTimer> for GameTimer {
     type Output = GameTimer;

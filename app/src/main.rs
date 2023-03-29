@@ -61,14 +61,6 @@ impl Sandbox for Slider {
         let mut builder = EntityStoreBuilder::new();
         let mut engine = MinimapEngine {
             timer: GameTimer::GAME_START,
-            wave_spawners: [
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Top),
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Mid),
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Bot),
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Top),
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Mid),
-                engine::wave::WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Bot),
-            ],
         };
         engine::Engine::on_start(&mut engine, &mut builder);
         let mut store = builder.build();

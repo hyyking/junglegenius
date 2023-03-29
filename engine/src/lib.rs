@@ -12,9 +12,11 @@ pub mod wave;
 
 pub mod event;
 
+use ecs::generic::pathfinding::PathfindError;
+use ecs::spawners::wave::WaveBuilder;
 pub use ecs::structures;
 
-pub use ecs::unit;
+pub use ecs::units;
 use ecs::GameObject;
 use wave::WaveSpawner;
 
@@ -36,7 +38,6 @@ pub trait Engine {
 
 pub struct MinimapEngine {
     pub timer: GameTimer,
-    pub wave_spawners: [WaveSpawner; 6],
 }
 
 impl Engine for MinimapEngine {
@@ -76,23 +77,52 @@ impl Engine for MinimapEngine {
     fn on_step(&mut self, store: &mut crate::ecs::store::EntityStore, step: GameTimer) {
         let new_timer = self.timer + step;
 
+        // pathfind existing minions
         for minion in store.minions_mut() {
             match minion.pathfind_for_duration(step) {
                 Ok(_) => {}
-                Err(ecs::entity::PathfindError::EndReached(_)) => {
+                Err(PathfindError::EndReached(_)) => {
                     minion.delete().map(drop).expect("can't delete minion")
                 }
             }
         }
 
-        for spawner in self.wave_spawners.iter_mut() {
-            for wave in spawner.waves(&new_timer, 0) {
-                for minion in wave.minions(&new_timer) {
-                    store.spawn_minion(minion.team, wave.lane, minion.ty);
-                    // todo!("Add a Wave builder builder for the spawner")
+        // spawn new minions
+        for spawn_timer in ecs::spawners::wave::timer_to_wave_spawn(self.timer, new_timer) {
+            for (team, lane) in [
+                (Team::Blue, Lane::Top),
+                (Team::Blue, Lane::Mid),
+                (Team::Blue, Lane::Bot),
+                (Team::Red, Lane::Top),
+                (Team::Red, Lane::Mid),
+                (Team::Red, Lane::Bot),
+            ] {
+                let mut wave = WaveBuilder::default()
+                    .set_lane(lane)
+                    .set_team(team)
+                    .has_siege(ecs::spawners::wave::has_siege(spawn_timer))
+                    .set_super([
+                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Top)).unwrap(),
+                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Mid)).unwrap(),
+                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Bot)).unwrap(),
+                    ]);
+                while let Some(minion) = ecs::generic::spawner::EntitySpawner::spawn_next(&mut wave)
+                {
+                    let id = store.spawn(minion);
+
+                    let minion = store
+                        .get_minion_mut(id)
+                        .expect("minion should have spawned");
+                    
+                    // pathfind minions from `spawn_timer` to `new_timer`
+                    match minion.pathfind_for_duration(new_timer - spawn_timer) {
+                        Ok(_) => {}
+                        Err(PathfindError::EndReached(_)) => {
+                            minion.delete().map(drop).expect("can't delete minion")
+                        }
+                    }
                 }
             }
-            spawner.current_timer = new_timer; // TODO: remove dis
         }
 
         self.timer = new_timer;
@@ -300,14 +330,6 @@ fn run_engine() {
     let mut store = EntityStoreBuilder::new();
     let mut engine = MinimapEngine {
         timer: GameTimer::GAME_START,
-        wave_spawners: [
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Top),
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Mid),
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Blue, Lane::Bot),
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Top),
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Mid),
-            WaveSpawner::from_timer(GameTimer::GAME_START, Team::Red, Lane::Bot),
-        ],
     };
     engine.on_start(&mut store);
 

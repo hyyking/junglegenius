@@ -3,17 +3,16 @@ use std::collections::HashMap;
 use rstar::primitives::GeomWithData;
 
 use crate::{
-    ecs::{Unit, UnitId},
-    structures::{InhibitorIndex, TurretIndex},
+    ecs::{
+        entity::{Entity, SpecificComponent},
+        generic::{pathfinding::PathfindingComponent, PositionComponent},
+        store::EntityStore,
+        Unit, UnitId,
+    },
+    structures::{
+        inhibitor::InhibitorComponent, turret::TurretComponent, InhibitorIndex, TurretIndex,
+    },
 };
-
-use crate::ecs::{
-    entity::{Entity, InhibitorComponent, SpecificComponent, TurretComponent},
-    generic::{pathfinding::PathfindingComponent, PositionComponent},
-    store::EntityStore,
-};
-
-
 
 type WithId<T> = (UnitId, T);
 
@@ -46,7 +45,6 @@ impl EntityStoreBuilder {
             point: index.position(),
             radius: index.radius(),
         };
-        
 
         let turret = TurretComponent {};
 
@@ -66,7 +64,7 @@ impl EntityStoreBuilder {
             point: index.position(),
             radius: index.radius(),
         };
-        let inhib = InhibitorComponent {};
+        let inhib = InhibitorComponent::default();
 
         let components = Entity {
             guid,

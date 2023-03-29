@@ -3,7 +3,7 @@ use std::time::Duration;
 mod spawner;
 mod waves;
 
-use crate::unit::minion::{Minion, MinionType};
+use crate::units::old_minion::{Minion, MinionType};
 pub use spawner::*;
 pub use waves::{WaveStates, Waves};
 

@@ -43,6 +43,12 @@ pub struct PathfindingComponent {
     pub(crate) speed: f32,
 }
 
+
+#[derive(Debug)]
+pub enum PathfindError {
+    EndReached(lyon::math::Point),
+}
+
 impl PathfindingComponent {
     pub fn no_path() -> Self {
         Self {
@@ -58,6 +64,11 @@ impl PathfindingComponent {
             position: 0.0,
             speed,
         }
+    }
+
+    pub fn offset_position(mut self, offset: f32) -> Self {
+        self.position += offset;
+        self
     }
 }
 

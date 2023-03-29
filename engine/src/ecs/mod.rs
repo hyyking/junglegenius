@@ -8,7 +8,8 @@ pub mod generic;
 mod kind;
 pub mod store;
 pub mod structures;
-pub mod unit;
+pub mod units;
+pub mod spawners;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct UnitId(u64);

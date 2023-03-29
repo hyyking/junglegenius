@@ -2,7 +2,7 @@ use engine::{
     ecs::Unit,
     stats::{GoldCollectable, UnitStatistics},
     structures::{TurretIndex, TurretState},
-    unit::minion::Minion,
+    units::old_minion::Minion,
     wave::Wave,
 };
 use iced::widget::canvas::Frame;

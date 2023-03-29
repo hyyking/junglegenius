@@ -1,25 +1,20 @@
 use rstar::primitives::GeomWithData;
 
-use crate::core::Team;
-
-use super::{
-    generic::{pathfinding::PathfindingComponent, PositionComponent},
-    store::EntityStore,
-    UnitId,
+use crate::{
+    core::Team,
+    ecs::{
+        generic::{pathfinding::PathfindingComponent, PositionComponent},
+        store::EntityStore,
+        UnitId,
+    },
 };
 
-#[derive(Debug)]
-pub struct TurretComponent {}
+mod builder;
+pub use builder::{EntityBuilder, SpecificComponentBuilder};
 
-#[derive(Debug)]
-pub struct InhibitorComponent {}
+use super::generic::pathfinding::PathfindError;
 
 #[derive(Debug, Clone)]
-pub struct MinionComponent {
-    pub kind: crate::unit::minion::MinionType,
-}
-
-#[derive(Debug)]
 pub enum SpecificComponent {
     None,
     Turret(usize),
@@ -27,7 +22,7 @@ pub enum SpecificComponent {
     Minion(usize),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entity {
     pub guid: UnitId,
     pub position: usize,
@@ -84,7 +79,7 @@ impl Entity {
 
 pub trait EntityRef<'store> {
     fn store_ref(&self) -> &'store EntityStore;
-    fn entity(&self) -> &'store Entity;
+    fn entity(&self) -> &Entity;
 
     fn guid(&self) -> UnitId {
         self.entity().guid
@@ -109,22 +104,6 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
     }
 }
 
-pub(crate) trait EntityMutCrateExt<'store>: EntityMut<'store> {
-    fn position_component_mut(&self) -> &'store mut PositionComponent {
-        self.entity().get_position_mut(self.store_mut())
-    }
-
-    fn pathfinding_component_mut(&self) -> &'store mut PathfindingComponent {
-        self.entity().get_pathfinding_mut(self.store_mut())
-    }
-}
-impl<'store, T> EntityRefCrateExt<'store> for T where T: EntityRef<'store> + ?Sized {}
-impl<'store, T> EntityMutCrateExt<'store> for T where T: EntityMut<'store> + ?Sized {}
-
-#[derive(Debug)]
-pub enum PathfindError {
-    EndReached(lyon::math::Point),
-}
 
 pub trait EntityMut<'store>: EntityRef<'store> {
     fn store_mut(&self) -> &'store mut EntityStore;
@@ -188,121 +167,23 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         }
     }
 
-    fn delete(self) -> Result<UnitId, ()> where Self: Sized {
+    fn delete(self) -> Result<UnitId, ()>
+    where
+        Self: Sized,
+    {
         self.store_mut().remove_by_id(self.guid())
     }
 }
 
-pub struct Turret<'store> {
-    pub(crate) store: &'store crate::ecs::store::EntityStore,
-    pub(crate) entity: &'store Entity,
-}
 
-impl<'store> EntityRef<'store> for Turret<'store> {
-    fn store_ref(&self) -> &'store EntityStore {
-        self.store
-    }
-    fn entity(&self) -> &'store Entity {
-        self.entity
-    }
-}
-
-impl<'a> std::fmt::Debug for Turret<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Turret")
-            .field("id", &self.entity.guid)
-            .field("position", &self.position())
-            .field("state", self.get_state())
-            .finish()
-    }
-}
-
-impl Turret<'_> {
-    pub fn get_state(&self) -> &TurretComponent {
-        &self.store.turret[self.entity.get_specific_unchecked().unwrap()].1
-    }
-}
-
-pub struct Inhibitor<'a> {
-    pub(crate) store: &'a crate::ecs::store::EntityStore,
-    pub(crate) entity: &'a Entity,
-}
-
-impl<'a> std::fmt::Debug for Inhibitor<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Inhibitor")
-            .field("id", &self.entity.guid)
-            .field("position", &self.position())
-            .field("state", self.get_state())
-            .finish()
-    }
-}
-
-impl<'store> EntityRef<'store> for Inhibitor<'store> {
-    fn store_ref(&self) -> &'store EntityStore {
-        self.store
+pub(crate) trait EntityMutCrateExt<'store>: EntityMut<'store> {
+    fn position_component_mut(&self) -> &'store mut PositionComponent {
+        self.entity().get_position_mut(self.store_mut())
     }
 
-    fn entity(&self) -> &'store Entity {
-        self.entity
+    fn pathfinding_component_mut(&self) -> &'store mut PathfindingComponent {
+        self.entity().get_pathfinding_mut(self.store_mut())
     }
 }
-
-impl Inhibitor<'_> {
-    pub fn get_state(&self) -> &InhibitorComponent {
-        &self.store.inhibitor[self.entity.get_specific_unchecked().unwrap()].1
-    }
-}
-
-
-pub struct Minion<'store> {
-    pub(crate) store: &'store crate::ecs::store::EntityStore,
-    pub(crate) entity: &'store Entity,
-}
-
-
-impl<'store> EntityRef<'store> for Minion<'store> {
-    fn store_ref(&self) -> &'store EntityStore {
-        self.store
-    }
-    fn entity(&self) -> &'store Entity {
-        self.entity
-    }
-}
-
-
-pub struct MinionMut<'store> {
-    pub(crate) store: &'store mut crate::ecs::store::EntityStore,
-    pub(crate) entity: std::ptr::NonNull<Entity>,
-}
-
-impl<'store> EntityRef<'store> for MinionMut<'store> {
-    fn store_ref(&self) -> &'store EntityStore {
-        unsafe { &*(self.store as *const _) }
-    }
-    fn entity(&self) -> &'store Entity {
-        unsafe { self.entity.as_ref() }
-    }
-}
-
-impl<'store> EntityMut<'store> for MinionMut<'store> {
-    fn store_mut(&self) -> &'store mut EntityStore {
-        unsafe { &mut *(self.store as *const _ as *mut _) }
-    }
-}
-
-impl<'a> std::fmt::Debug for MinionMut<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Turret")
-            .field("id", &self.entity().guid)
-            .field("position", &self.position())
-            .field("state", self.get_state())
-            .finish()
-    }
-}
-
-impl MinionMut<'_> {
-    pub fn get_state(&self) -> &MinionComponent {
-        &self.store.minions[self.entity().get_specific_unchecked().unwrap()].1
-    }
-}
+impl<'store, T> EntityRefCrateExt<'store> for T where T: EntityRef<'store> + ?Sized {}
+impl<'store, T> EntityMutCrateExt<'store> for T where T: EntityMut<'store> + ?Sized {}

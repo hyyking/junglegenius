@@ -1,8 +1,9 @@
+pub mod old_minion;
 pub mod minion;
 
 #[derive(Debug)]
 pub enum UnitKind {
-    Minion(minion::Minion),
+    Minion(old_minion::Minion),
 }
 
 impl super::Unit for UnitKind {

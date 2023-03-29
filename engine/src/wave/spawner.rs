@@ -7,8 +7,8 @@ use crate::{
 
 #[derive(Debug)]
 pub struct WaveSpawner {
-    team: Team,
-    lane: Lane,
+    pub team: Team,
+    pub lane: Lane,
     pub current_timer: GameTimer,
 }
 
@@ -78,7 +78,7 @@ impl EventProducer for WaveSpawner {
     }
 }
 
-fn timer_to_wave_spawn(from: GameTimer, to: GameTimer) -> impl Iterator<Item = GameTimer> {
+pub fn timer_to_wave_spawn(from: GameTimer, to: GameTimer) -> impl Iterator<Item = GameTimer> {
     debug_assert!(from <= to);
     let from = std::cmp::max(from, GameTimer::FIRST_SPAWN);
     (from.as_secs()..to.as_secs())

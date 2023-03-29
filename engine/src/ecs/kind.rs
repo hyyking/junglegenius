@@ -1,9 +1,9 @@
-use crate::{structures::{self, Inhibitor, Turret, Nexus}, unit::{self, minion::Minion}};
+use crate::{structures::{self, Inhibitor, Turret, Nexus}, units::{self, old_minion::Minion}};
 
 #[derive(Debug)]
 pub enum ObjectKind<'a> {
     Structure(structures::StructureKind<'a>),
-    Unit(unit::UnitKind),
+    Unit(units::UnitKind),
 }
 
 impl super::Unit for ObjectKind<'_> {
@@ -49,6 +49,6 @@ impl<'a> From<&'a Nexus> for ObjectKind<'a> {
 
 impl<'a> From<Minion> for ObjectKind<'a> {
     fn from(value: Minion) -> Self {
-        Self::Unit(unit::UnitKind::Minion(value))
+        Self::Unit(units::UnitKind::Minion(value))
     }
 }

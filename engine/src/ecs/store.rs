@@ -6,17 +6,16 @@ use crate::{
     core::{Lane, Team},
     ecs::{
         entity::{
-            Entity, Inhibitor, InhibitorComponent, MinionComponent, SpecificComponent, Turret,
-            TurretComponent,
+            Entity, SpecificComponent,
         },
         generic::PositionComponent,
         UnitId,
     },
-    unit::minion::MinionType,
+    units::{old_minion::MinionType, minion::{MinionComponent, MinionMut, Minion}}, structures::{turret::{TurretComponent, Turret}, inhibitor::{Inhibitor, InhibitorComponent}},
 };
 
 use super::{
-    entity::{Minion, MinionMut},
+    entity::{EntityBuilder, SpecificComponentBuilder},
     generic::pathfinding::{PathfindingComponent, LANE_PATHS},
 };
 
@@ -36,6 +35,30 @@ pub struct EntityStore {
 }
 
 impl EntityStore {
+
+    pub fn spawn(&mut self, entity: impl EntityBuilder) -> UnitId {
+        let guid = entity.guid();
+        let position = entity.position();
+        let pathfinding = entity.pathfinding();
+
+        let specific = match entity.specific() {
+            SpecificComponentBuilder::None => SpecificComponent::None,
+            SpecificComponentBuilder::Turret(turret) => SpecificComponent::Turret(self.turret.insert((guid, turret))),
+            SpecificComponentBuilder::Inhibitor(inhib) => SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib))),
+            SpecificComponentBuilder::Minion(minion) => SpecificComponent::Minion(self.minions.insert((guid, minion))),
+        };
+
+        let components = Entity {
+            guid,
+            position: self.position.insert((guid, position)),
+            specific,
+            pathfinding: self.pathfinding.insert((guid, pathfinding)),
+        };
+        self.tree.insert(GeomWithData::new(position, guid));
+        self.entities.insert(guid, components);
+        guid
+    }
+
     pub fn spawn_minion(&mut self, team: Team, lane: Lane, kind: MinionType) -> UnitId {
         let guid = UnitId::new(Some(team), Some(lane));
 
