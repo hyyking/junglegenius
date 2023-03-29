@@ -27,7 +27,7 @@ pub struct EntityStore {
     pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
 
-    pub(crate) world: rstar::RTree<PointId>,
+    pub world: rstar::RTree<PointId>,
 }
 
 impl EntityStore {

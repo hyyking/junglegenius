@@ -11,11 +11,17 @@ use crate::{
     },
 };
 
-use super::old_minion::MinionType;
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum MinionType {
+    Melee,
+    Ranged,
+    Siege,
+    SuperMinion,
+}
 
 #[derive(Debug, Clone)]
 pub struct MinionComponent {
-    pub kind: crate::units::old_minion::MinionType,
+    pub kind: MinionType,
 }
 
 pub struct Minion<'store> {

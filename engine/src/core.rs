@@ -10,8 +10,8 @@ use lyon::{
 };
 
 use crate::{
-    ecs::Unit,
-    structures::{old_nexus::Nexus, TurretIndex},
+    ecs::{Unit, entity::EntityBuilder},
+    structures::{nexus::Nexus, turret::TurretIndex},
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -114,10 +114,10 @@ pub fn top_lane_path(team: Team) -> Path {
     let blue_offset = Vector::new(150.0, 200.0);
     let red_offset = Vector::new(0.0, 200.0);
 
-    let blue_nexus = Nexus::from(Team::Blue).position() - blue_offset;
-    let red_nexus = Nexus::from(Team::Red).position() - red_offset;
-    let blue_top_outer = TurretIndex::BLUE_TOP_OUTER.position();
-    let red_top_outer = TurretIndex::RED_TOP_OUTER.position();
+    let blue_nexus = Nexus::from(Team::Blue).position().point - blue_offset;
+    let red_nexus = Nexus::from(Team::Red).position().point - red_offset;
+    let blue_top_outer = TurretIndex::BLUE_TOP_OUTER.position().point;
+    let red_top_outer = TurretIndex::RED_TOP_OUTER.position().point;
 
     let mut path = Path::builder();
     path.add_line_segment(&LineSegment {
@@ -143,36 +143,11 @@ pub fn top_lane_path(team: Team) -> Path {
         Team::Red => path.reversed().with_attributes().into_path(),
         Team::Blue => path,
     }
-
-    /*
-
-
-    Path::new(|p| {
-        let blue_offset = Vector::new(150.0, 200.0);
-        let blue_nexus = blue_nexus.pos - blue_offset;
-
-        let red_offset = Vector::new(0.0, 200.0);
-        let red_nexus = red_nexus.pos - red_offset;
-
-        p.move_to(blue_nexus);
-        p.line_to(iced::Point::new(blue_nexus.x, blue_top_outer.pos.y));
-        p.move_to(iced::Point::new(blue_nexus.x, blue_top_outer.pos.y));
-        p.quadratic_curve_to(
-            iced::Point::new(
-                blue_top_outer.pos.x + blue_offset.x,
-                red_top_outer.pos.y + red_offset.y,
-            ),
-            iced::Point::new(red_top_outer.pos.x, red_nexus.y),
-        );
-        p.move_to(iced::Point::new(red_top_outer.pos.x, red_nexus.y));
-        p.line_to(red_nexus);
-    })
-     */
 }
 
 pub fn mid_lane_path(team: Team) -> Path {
-    let blue_nexus = Nexus::from(Team::Blue).position();
-    let red_nexus = Nexus::from(Team::Red).position();
+    let blue_nexus = Nexus::from(Team::Blue).position().point;
+    let red_nexus = Nexus::from(Team::Red).position().point;
 
     let mut path = Path::builder();
     path.add_line_segment(&LineSegment {
@@ -191,10 +166,10 @@ pub fn bot_lane_path(team: Team) -> Path {
     let start_offset = Vector::new(200.0, 200.0);
     let end_offset = Vector::new(200.0, 0.0);
 
-    let start_nexus = Nexus::from(Team::Blue).position() + start_offset;
-    let end_nexus = Nexus::from(Team::Red).position() + end_offset;
-    let start_bot_outer = TurretIndex::BLUE_BOT_OUTER.position();
-    let end_bot_outer = TurretIndex::RED_BOT_OUTER.position();
+    let start_nexus = Nexus::from(Team::Blue).position().point + start_offset;
+    let end_nexus = Nexus::from(Team::Red).position().point + end_offset;
+    let start_bot_outer = TurretIndex::BLUE_BOT_OUTER.position().point;
+    let end_bot_outer = TurretIndex::RED_BOT_OUTER.position().point;
 
     let mut path = Path::builder();
     path.add_line_segment(&LineSegment {
@@ -220,34 +195,5 @@ pub fn bot_lane_path(team: Team) -> Path {
     match team {
         Team::Red => path.reversed().with_attributes().into_path(),
         Team::Blue => path,
-    }
-    /*
-    Path::new(|p| {
-
-        let blue_nexus = blue_nexus.pos + blue_offset;
-        let red_nexus = red_nexus.pos + red_offset;
-
-        p.move_to(blue_nexus);
-        p.line_to(iced::Point::new(blue_bot_outer.pos.x, blue_nexus.y));
-        p.move_to(iced::Point::new(blue_bot_outer.pos.x, blue_nexus.y));
-        p.quadratic_curve_to(
-            iced::Point::new(
-                red_bot_outer.pos.x - red_offset.x,
-                blue_bot_outer.pos.y - blue_offset.y,
-            ),
-            iced::Point::new(red_nexus.x, red_bot_outer.pos.y),
-        );
-        p.move_to(iced::Point::new(red_nexus.x, red_bot_outer.pos.y));
-        p.line_to(red_nexus);
-    })
-     */
-}
-
-pub(crate) fn get_path(team: Team, lane: Lane) -> lyon::path::Path {
-    match lane {
-        Lane::Top => top_lane_path(team),
-        Lane::Mid => mid_lane_path(team),
-        Lane::Bot => bot_lane_path(team),
-        Lane::Nexus => unimplemented!(),
     }
 }

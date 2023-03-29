@@ -9,18 +9,16 @@ use iced::{
 
 use engine::{
     ecs::{entity::EntityRef, store::EntityStore},
-    GameState, MinimapEngine,
 };
 
 use crate::{information::Card, utils, Message};
+
 // use crate::wave::WaveSpawnerState;
+// pub mod geometry;
+// mod impls;
+// use self::geometry::MinimapGeometry;
 
-pub mod geometry;
-mod impls;
-
-use self::geometry::MinimapGeometry;
-
-use engine::structures::MAP_BOUNDS as SIMBOUNDS;
+use engine::ecs::structures::MAP_BOUNDS as SIMBOUNDS;
 
 pub const MAP_BOUNDS: Rectangle = Rectangle {
     x: SIMBOUNDS.x,
@@ -30,15 +28,14 @@ pub const MAP_BOUNDS: Rectangle = Rectangle {
 };
 
 pub struct Minimap<'a> {
-    gamestate: &'a GameState,
     store: &'a EntityStore,
 }
 
 impl<'a> Minimap<'a> {
-    pub fn new(gamestate: &'a GameState, store: &'a EntityStore) -> Self {
-        Self { gamestate, store }
+    pub fn new(store: &'a EntityStore) -> Self {
+        Self { store }
     }
-
+/*
     fn draw_map(&self, frame: &mut Frame) {
         self.gamestate.blue.nexus.draw(frame, self.gamestate);
         self.gamestate.red.nexus.draw(frame, self.gamestate);
@@ -63,8 +60,9 @@ impl<'a> Minimap<'a> {
             .iter()
             .for_each(|inhib| inhib.draw(frame, self.gamestate));
     }
-
+ */
     fn get_cards(&self, point: Point) -> Vec<Card> {
+        /*
         let blue_nexus = self.gamestate.blue.nexus.describe(self.gamestate, point);
         let red_nexus = self.gamestate.red.nexus.describe(self.gamestate, point);
 
@@ -108,6 +106,8 @@ impl<'a> Minimap<'a> {
                 .chain(red_nexus)
                 .chain(waves),
         )
+         */
+        vec![]
     }
 }
 
@@ -210,7 +210,25 @@ impl Program<Message> for Minimap<'_> {
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(MAP_BOUNDS.size());
         frame.scale(bounds.width / MAP_BOUNDS.width);
-        self.draw_map(&mut frame);
+        
+
+        for data in self.store.world.iter() {
+            let id = data.data;
+            let position_component = data.geom();
+
+            let pos = position_component.point;
+            let radius = position_component.radius;
+            let team = if let Some(team) = id.team() {
+                utils::team_color(team)
+            } else {
+                iced::Color::from_rgb8(80, 80, 80)
+            };
+
+            frame.fill(
+                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
+                team,
+            );
+        }
         /*
                 self.gamestate
                     .blue
@@ -221,7 +239,7 @@ impl Program<Message> for Minimap<'_> {
                     .red
                     .waves()
                     .for_each(|ws| ws.draw(&mut frame, self.gamestate));
-        */
+        
         for minion in self.store.minions() {
             let pos = minion.position();
             let radius = minion.radius();
@@ -235,6 +253,7 @@ impl Program<Message> for Minimap<'_> {
                 team,
             );
         }
+        */
         vec![frame.into_geometry()]
     }
 }

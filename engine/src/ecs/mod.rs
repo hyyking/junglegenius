@@ -1,15 +1,18 @@
 use crate::core::{Lane, Team};
 
-use self::structures::{InhibitorIndex, TurretIndex};
+
 
 pub mod builder;
 pub mod entity;
 pub mod generic;
-mod kind;
+
 pub mod spawners;
 pub mod store;
 pub mod structures;
 pub mod units;
+
+
+// mod kind;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct UnitId(u64);
@@ -23,6 +26,15 @@ impl std::fmt::Debug for UnitId {
 }
 
 impl UnitId {
+    const OUTER_TURRET: u64 = 1;
+    const INNER_TURRET: u64 = 2;
+    const INHIB_TURRET: u64 = 3;
+    const NEXUS_TOP_TURRET: u64 = 4;
+    const NEXUS_BOT_TURRET: u64 = 5;
+    const INHIBITOR: u64 = 6;
+    const NEXUS: u64 = 7;
+
+
     pub fn new(team: Option<Team>, lane: Option<Lane>) -> Self {
         // 0000     0000    0000    0000  16..32  0000 0000 0000 0000
         // ----     ----    ----    ----          -------------------
@@ -72,7 +84,7 @@ impl UnitId {
         self.0 == 0
     }
 
-    fn team(&self) -> Option<Team> {
+    pub fn team(&self) -> Option<Team> {
         let masked = self.0 & 0b1111;
         match masked {
             1 => Some(Team::Blue),
@@ -82,24 +94,6 @@ impl UnitId {
     }
 }
 
-impl From<TurretIndex> for UnitId {
-    fn from(value: TurretIndex) -> Self {
-        let team = value.0;
-        let lane = value.1;
-        let kind = value.2;
-
-        let (mut id, _) = Self::from_tl(Some(team), Some(lane));
-        let offset = 32;
-        id |= match kind {
-            structures::TurretKind::Outer => 1 << offset,
-            structures::TurretKind::Inner => 2 << offset,
-            structures::TurretKind::Inhib => 3 << offset,
-            structures::TurretKind::NexusBot => 4 << offset,
-            structures::TurretKind::NexusTop => 5 << offset,
-        };
-        Self(id)
-    }
-}
 
 impl From<crate::ecs::structures::turret::TurretIndex> for UnitId {
     fn from(value: crate::ecs::structures::turret::TurretIndex) -> Self {
@@ -110,27 +104,17 @@ impl From<crate::ecs::structures::turret::TurretIndex> for UnitId {
         let (mut id, _) = Self::from_tl(Some(team), Some(lane));
         let offset = 32;
         id |= match kind {
-            crate::ecs::structures::turret::TurretKind::Outer => 1 << offset,
-            crate::ecs::structures::turret::TurretKind::Inner => 2 << offset,
-            crate::ecs::structures::turret::TurretKind::Inhib => 3 << offset,
-            crate::ecs::structures::turret::TurretKind::NexusBot => 4 << offset,
-            crate::ecs::structures::turret::TurretKind::NexusTop => 5 << offset,
+            crate::ecs::structures::turret::TurretKind::Outer => Self::OUTER_TURRET << offset,
+            crate::ecs::structures::turret::TurretKind::Inner => Self::INNER_TURRET << offset,
+            crate::ecs::structures::turret::TurretKind::Inhib => Self::INHIB_TURRET << offset,
+            crate::ecs::structures::turret::TurretKind::NexusBot => Self::NEXUS_BOT_TURRET << offset,
+            crate::ecs::structures::turret::TurretKind::NexusTop => Self::NEXUS_TOP_TURRET << offset,
         };
         Self(id)
     }
 }
 
-impl From<InhibitorIndex> for UnitId {
-    fn from(value: InhibitorIndex) -> Self {
-        let team = value.0;
-        let lane = value.1;
 
-        let (mut id, _) = Self::from_tl(Some(team), Some(lane));
-        let offset = 32;
-        id |= 6 << offset;
-        Self(id)
-    }
-}
 
 impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
     fn from(value: crate::ecs::structures::inhibitor::InhibitorIndex) -> Self {
@@ -139,7 +123,20 @@ impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
 
         let (mut id, _) = Self::from_tl(Some(team), Some(lane));
         let offset = 32;
-        id |= 6 << offset;
+        id |= Self::INHIBITOR << offset;
+        Self(id)
+    }
+}
+
+
+impl From<&crate::ecs::structures::nexus::Nexus> for UnitId {
+    fn from(value: &crate::ecs::structures::nexus::Nexus) -> Self {
+        let team = value.team;
+        let lane = Lane::Nexus;
+
+        let (mut id, _) = Self::from_tl(Some(team), Some(lane));
+        let offset = 32;
+        id |= Self::NEXUS << offset;
         Self(id)
     }
 }
@@ -154,52 +151,4 @@ pub trait Unit {
     fn team(&self) -> crate::core::Team;
     fn position(&self) -> lyon::math::Point;
     fn radius(&self) -> f32;
-}
-
-#[derive(Debug)]
-pub struct GameObject<'a> {
-    kind: kind::ObjectKind<'a>,
-}
-
-impl<'a> GameObject<'a> {
-    pub fn new<T>(obj: T) -> Self
-    where
-        kind::ObjectKind<'a>: From<T>,
-    {
-        Self {
-            kind: kind::ObjectKind::from(obj),
-        }
-    }
-}
-
-impl rstar::RTreeObject for GameObject<'_> {
-    type Envelope = rstar::AABB<[f32; 2]>;
-
-    fn envelope(&self) -> Self::Envelope {
-        rstar::AABB::from_point(self.kind.position().to_array())
-    }
-}
-
-impl rstar::PointDistance for GameObject<'_> {
-    fn distance_2(&self, point: &[f32; 2]) -> f32 {
-        let origin = self.kind.position().to_array();
-        let d_x = origin[0] - point[0];
-        let d_y = origin[1] - point[1];
-        let distance_to_origin = (d_x * d_x + d_y * d_y).sqrt();
-        let distance_to_ring = distance_to_origin - self.kind.radius();
-        let distance_to_circle = f32::max(0.0, distance_to_ring);
-        // We must return the squared distance!
-        distance_to_circle * distance_to_circle
-    }
-
-    // This implementation is not required but more efficient since it
-    // omits the calculation of a square root
-    fn contains_point(&self, point: &[f32; 2]) -> bool {
-        let origin = self.kind.position().to_array();
-        let d_x = origin[0] - point[0];
-        let d_y = origin[1] - point[1];
-        let distance_to_origin_2 = d_x * d_x + d_y * d_y;
-        let radius_2 = self.kind.radius() * self.kind.radius();
-        distance_to_origin_2 <= radius_2
-    }
 }

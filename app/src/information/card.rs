@@ -1,9 +1,6 @@
 use engine::{
     ecs::Unit,
     stats::{GoldCollectable, UnitStatistics},
-    structures::{TurretIndex, TurretState},
-    units::old_minion::Minion,
-    wave::Wave,
 };
 use iced::widget::canvas::Frame;
 
@@ -11,23 +8,16 @@ use super::{list::List, DrawInformation};
 
 #[derive(Debug, Clone)]
 pub enum Card {
-    Turret {
-        index: TurretIndex,
-        state: TurretState,
-        stats: UnitStatistics,
-    },
     Text {
         text: String,
     },
-    Wave {
-        wave: Wave,
-    },
-    Minion(Minion, UnitStatistics),
 }
 
 impl DrawInformation for Card {
     fn draw_consume(&self, rectangle: iced::Rectangle, frame: &mut Frame) -> iced::Rectangle {
         match self {
+            Card::Text { text } => text.draw_consume(rectangle, frame),
+            /*
             Card::Turret {
                 state,
                 index,
@@ -64,7 +54,7 @@ impl DrawInformation for Card {
                 }
                 .draw_consume(rectangle, frame)
             }
-            Card::Text { text } => text.draw_consume(rectangle, frame),
+            
             Card::Minion(minion, stats) => {
                 let name = List {
                     padding: (0.0, 0.0, 0.0, 0.0),
@@ -94,6 +84,7 @@ impl DrawInformation for Card {
                 .draw_consume(rectangle, frame)
             }
             _ => unimplemented!("Card type not supported"),
+            */
         }
     }
 }

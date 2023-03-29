@@ -4,13 +4,9 @@ use std::time::Duration;
 
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
-use engine::event::EventConsumer;
 use engine::MinimapEngine;
 use engine::{
-    core::{GameTimer, Team},
-    event::TurretEvent,
-    stats::WithUnitStats,
-    structures::TurretIndex,
+    core::{GameTimer},
 };
 use iced::widget::canvas;
 use iced::widget::{column, container, image, slider, text};
@@ -25,8 +21,6 @@ mod utils;
 // use crate::wave::WaveSpawnerState;
 
 use crate::information::Card;
-
-use engine::{core::Lane, GameState};
 
 pub fn main() -> iced::Result {
     Slider::run(Settings::default())
@@ -43,7 +37,7 @@ pub enum Message {
 
 pub struct Slider {
     slider_value: u16,
-    gamestate: GameState,
+
     current_point: Option<Point>,
     cards: Vec<Card>,
 
@@ -56,7 +50,6 @@ impl Sandbox for Slider {
 
     fn new() -> Slider {
         let slider_value = 60;
-        let gamestate = GameState::from_secs(slider_value as usize);
 
         let mut builder = EntityStoreBuilder::new();
         let mut engine = MinimapEngine {
@@ -75,7 +68,6 @@ impl Sandbox for Slider {
             slider_value,
             cards: vec![],
             current_point: None,
-            gamestate,
             engine,
             store,
         }
@@ -92,11 +84,10 @@ impl Sandbox for Slider {
 
                 if forward {
                     let step = GameTimer(Duration::from_secs(u64::from(value - self.slider_value)));
-                    self.gamestate.step_update_callback(step.0, |_| {});
 
                     engine::Engine::on_step(&mut self.engine, &mut self.store, step);
                 }
-
+                /*
                 if self.gamestate.timer == GameTimer(Duration::from_secs(2 * 60)) {
                     self.gamestate.on_event(engine::event::Event::Turret(
                         TurretIndex::BLUE_TOP_OUTER,
@@ -113,6 +104,7 @@ impl Sandbox for Slider {
                         TurretEvent::TakePlate,
                     ));
                 }
+                 */
 
                 self.slider_value = value;
 
@@ -129,6 +121,8 @@ impl Sandbox for Slider {
             Message::SelectCards(point, cards) => {
                 self.cards.clear();
                 self.current_point = Some(point);
+                self.cards.extend(cards);
+                /*
                 for card in cards {
                     match card {
                         Card::Wave { wave } => {
@@ -142,6 +136,7 @@ impl Sandbox for Slider {
                         _ => self.cards.push(card),
                     }
                 }
+                 */
             }
             Message::UnselectCards => {
                 self.current_point = None;
@@ -163,7 +158,7 @@ impl Sandbox for Slider {
 
         let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
 
-        let overlay = canvas(minimap::Minimap::new(&self.gamestate, &self.store));
+        let overlay = canvas(minimap::Minimap::new(&self.store));
 
         let widget = map_overlay::MapWidget::new(
             overlay,
