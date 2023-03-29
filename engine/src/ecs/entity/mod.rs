@@ -42,40 +42,6 @@ impl Entity {
     pub(crate) fn is_minion(&self) -> bool {
         matches!(self.specific, SpecificComponent::Minion(_))
     }
-
-    pub fn get_specific_unchecked(&self) -> Option<usize> {
-        match self.specific {
-            SpecificComponent::Turret(a) => Some(a),
-            SpecificComponent::Inhibitor(a) => Some(a),
-            SpecificComponent::Minion(a) => Some(a),
-            SpecificComponent::None => None,
-        }
-    }
-
-    pub fn get_position<'store>(&self, store: &'store EntityStore) -> &'store PositionComponent {
-        &store.position[self.position].1
-    }
-
-    pub(crate) fn get_position_mut<'store>(
-        &self,
-        store: &'store mut EntityStore,
-    ) -> &'store mut PositionComponent {
-        &mut store.position[self.position].1
-    }
-
-    pub fn get_pathfinding<'store>(
-        &self,
-        store: &'store EntityStore,
-    ) -> &'store PathfindingComponent {
-        &store.pathfinding[self.position].1
-    }
-
-    pub(crate) fn get_pathfinding_mut<'store>(
-        &self,
-        store: &'store mut EntityStore,
-    ) -> &'store mut PathfindingComponent {
-        &mut store.pathfinding[self.pathfinding].1
-    }
 }
 
 pub trait EntityRef<'store> {
@@ -91,17 +57,30 @@ pub trait EntityRef<'store> {
     }
 
     fn position(&self) -> &'store lyon::math::Point {
-        &self.entity().get_position(self.store_ref()).point
+        &self.position_component().point
     }
 
     fn radius(&self) -> f32 {
-        self.entity().get_position(self.store_ref()).radius
+        self.position_component().radius
     }
 }
 
 pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
     fn position_component(&self) -> &'store PositionComponent {
-        self.entity().get_position(self.store_ref())
+        &self.store_ref().position[self.entity().position].1
+    }
+
+    fn get_pathfinding(&self) -> &'store PathfindingComponent {
+        &self.store_ref().pathfinding[self.entity().pathfinding].1
+    }
+
+    fn get_specific_unchecked(&self) -> Option<usize> {
+        match self.entity().specific {
+            SpecificComponent::Turret(a) => Some(a),
+            SpecificComponent::Inhibitor(a) => Some(a),
+            SpecificComponent::Minion(a) => Some(a),
+            SpecificComponent::None => None,
+        }
     }
 }
 
@@ -181,11 +160,11 @@ pub trait EntityMut<'store>: EntityRef<'store> {
 
 pub(crate) trait EntityMutCrateExt<'store>: EntityMut<'store> {
     fn position_component_mut(&self) -> &'store mut PositionComponent {
-        self.entity().get_position_mut(self.store_mut())
+        &mut self.store_mut().position[self.entity().position].1
     }
 
     fn pathfinding_component_mut(&self) -> &'store mut PathfindingComponent {
-        self.entity().get_pathfinding_mut(self.store_mut())
+        &mut self.store_mut().pathfinding[self.entity().pathfinding].1
     }
 }
 impl<'store, T> EntityRefCrateExt<'store> for T where T: EntityRef<'store> + ?Sized {}

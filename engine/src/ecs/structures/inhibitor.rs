@@ -1,7 +1,7 @@
 use crate::{
     core::{GameTimer, Lane, Team},
     ecs::{
-        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder},
+        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
         generic::pathfinding::PathfindingComponent,
         store::EntityStore,
     },
@@ -39,7 +39,7 @@ impl Inhibitor<'_> {
     }
 
     pub fn get_state(&self) -> &InhibitorComponent {
-        &self.store.inhibitor[self.entity.get_specific_unchecked().unwrap()].1
+        &self.store.inhibitor[self.get_specific_unchecked().unwrap()].1
     }
 }
 

@@ -2,7 +2,7 @@ use crate::{
     core::{Lane, Team},
     ecs::{
         self,
-        entity::{Entity, EntityBuilder, EntityMut, EntityRef, SpecificComponentBuilder},
+        entity::{Entity, EntityBuilder, EntityMut, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
         generic::{
             pathfinding::{PathfindingComponent, LANE_PATHS},
             PositionComponent,
@@ -39,7 +39,7 @@ pub struct MinionMut<'store> {
 
 impl MinionMut<'_> {
     pub fn get_state(&self) -> &MinionComponent {
-        &self.store.minions[self.entity().get_specific_unchecked().unwrap()].1
+        &self.store.minions[self.get_specific_unchecked().unwrap()].1
     }
 }
 

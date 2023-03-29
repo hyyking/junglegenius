@@ -3,7 +3,7 @@ use lyon::math::Point;
 use crate::{
     core::{Lane, Team},
     ecs::{
-        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder},
+        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
         generic::{pathfinding::PathfindingComponent, PositionComponent},
         store::EntityStore,
     },
@@ -55,7 +55,7 @@ impl<'store> EntityRef<'store> for Turret<'store> {
 
 impl Turret<'_> {
     pub fn get_state(&self) -> &TurretComponent {
-        &self.store.turret[self.entity.get_specific_unchecked().unwrap()].1
+        &self.store.turret[self.get_specific_unchecked().unwrap()].1
     }
 }
 
