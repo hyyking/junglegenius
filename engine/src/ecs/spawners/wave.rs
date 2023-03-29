@@ -1,8 +1,11 @@
-use crate::{core::{Lane, Team, GameTimer}, ecs::{generic::spawner::EntitySpawner, entity::EntityBuilder}, units::minion::MinionBuilder};
+use crate::{
+    core::{GameTimer, Lane, Team},
+    ecs::{entity::EntityBuilder, generic::spawner::EntitySpawner},
+    units::minion::MinionBuilder,
+};
 
 pub const CANNON_PRE_15_PERIOD: usize = 3;
 pub const CANNON_PRE_25_PERIOD: usize = 2;
-
 
 pub struct WaveBuilder {
     base_pos: f32,
@@ -30,7 +33,10 @@ impl WaveBuilder {
         self
     }
 
-    pub fn set_super(mut self, inhibs: [crate::ecs::structures::inhibitor::Inhibitor<'_>; 3]) -> Self {
+    pub fn set_super(
+        mut self,
+        inhibs: [crate::ecs::structures::inhibitor::Inhibitor<'_>; 3],
+    ) -> Self {
         let Some(lane) = self.lane else { return self };
 
         if inhibs[lane as usize].is_down() {
@@ -81,7 +87,6 @@ impl EntitySpawner for WaveBuilder {
             self.ranged -= 1;
             minion = Some(MinionBuilder::ranged());
         }
-        let offset = self.base_pos;
 
         let minion = minion.map(|minion| {
             minion
@@ -90,17 +95,18 @@ impl EntitySpawner for WaveBuilder {
                 .set_offset(self.base_pos)
         });
 
-        self.base_pos -= 100.0 + minion.as_ref().map(|m| m.position().radius).unwrap_or_default(); // minion padding
-        
+        self.base_pos -= 100.0
+            + minion
+                .as_ref()
+                .map(|m| m.position().radius)
+                .unwrap_or_default(); // minion padding
+
         minion
     }
 }
 
-
-
 pub fn wave_number(spawn: GameTimer) -> usize {
-    ((spawn - GameTimer::FIRST_SPAWN).as_secs() / GameTimer::WAVE_PERIOD.as_secs()
-        + 1) as usize
+    ((spawn - GameTimer::FIRST_SPAWN).as_secs() / GameTimer::WAVE_PERIOD.as_secs() + 1) as usize
 }
 
 pub fn has_siege(spawn: GameTimer) -> bool {
@@ -122,4 +128,3 @@ pub fn timer_to_wave_spawn(from: GameTimer, to: GameTimer) -> impl Iterator<Item
         .filter(|a| (a - GameTimer::FIRST_SPAWN.as_secs()) % GameTimer::WAVE_PERIOD.as_secs() == 0)
         .map(|s| GameTimer(std::time::Duration::from_secs(s)))
 }
-

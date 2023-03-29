@@ -1,5 +1,5 @@
 use std::{
-    ops::Index,  
+    ops::Index,
     sync::{Arc, LazyLock},
 };
 
@@ -43,13 +43,16 @@ pub struct PathfindingComponent {
     pub(crate) speed: f32,
 }
 
-
 #[derive(Debug)]
 pub enum PathfindError {
     EndReached(lyon::math::Point),
 }
 
 impl PathfindingComponent {
+    pub fn is_static(&self) -> bool {
+        matches!(self.path, Pathfinding::Static)
+    }
+
     pub fn no_path() -> Self {
         Self {
             path: Pathfinding::Static,

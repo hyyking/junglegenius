@@ -1,10 +1,23 @@
-use crate::{core::{GameTimer, Lane, Team}, structures::{TurretIndex}, wave::Wave, GameState};
+use crate::{
+    core::{GameTimer, Lane, Team},
+    structures::TurretIndex,
+    wave::Wave,
+    GameState,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Event {
     Turret(TurretIndex, TurretEvent),
-    Inhibitor { team: Team, lane: Lane, event: InhibitorEvent },
-    Wave { team: Team, lane: Lane, event: WaveEvent }
+    Inhibitor {
+        team: Team,
+        lane: Lane,
+        event: InhibitorEvent,
+    },
+    Wave {
+        team: Team,
+        lane: Lane,
+        event: WaveEvent,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -22,8 +35,6 @@ pub enum InhibitorEvent {
 pub enum WaveEvent {
     Spawn(Wave),
 }
-
-
 
 pub trait EventConsumer<T = Event> {
     fn on_timer_consume(&mut self, timer: GameTimer);

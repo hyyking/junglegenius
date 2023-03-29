@@ -10,8 +10,8 @@ use lyon::{
 };
 
 use crate::{
-    structures::{old_nexus::Nexus, TurretIndex},
     ecs::Unit,
+    structures::{old_nexus::Nexus, TurretIndex},
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -92,7 +92,6 @@ impl Add for GameTimer {
         Self(self.0.saturating_add(rhs.0))
     }
 }
-
 
 impl Add<&GameTimer> for GameTimer {
     type Output = GameTimer;

@@ -7,12 +7,13 @@ use crate::{
         entity::{Entity, SpecificComponent},
         generic::{pathfinding::PathfindingComponent, PositionComponent},
         store::EntityStore,
-        Unit, UnitId,
+        UnitId,
     },
-    structures::{
-        inhibitor::InhibitorComponent, turret::TurretComponent, InhibitorIndex, TurretIndex,
-    },
+    structures::{inhibitor::InhibitorComponent, turret::TurretComponent},
+    units::minion::MinionComponent,
 };
+
+use super::entity::{EntityBuilder, SpecificComponentBuilder};
 
 type WithId<T> = (UnitId, T);
 
@@ -22,6 +23,7 @@ pub struct EntityStoreBuilder {
     turret: slab::Slab<WithId<TurretComponent>>,
     inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pathfinding: slab::Slab<WithId<PathfindingComponent>>,
+    minions: slab::Slab<WithId<MinionComponent>>,
     nopath_key: usize,
 }
 
@@ -34,50 +36,46 @@ impl EntityStoreBuilder {
             position: slab::Slab::with_capacity(64),
             turret: slab::Slab::with_capacity(64),
             inhibitor: slab::Slab::with_capacity(64),
+            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3),
             pathfinding,
             nopath_key,
         }
     }
 
-    pub fn spawn_turret(&mut self, index: TurretIndex) -> UnitId {
-        let guid = UnitId::from(index);
-        let position = PositionComponent {
-            point: index.position(),
-            radius: index.radius(),
-        };
+    pub fn spawn(&mut self, entity: impl EntityBuilder) -> UnitId {
+        let guid = entity.guid();
+        let position = entity.position();
+        let pathfinding = entity.pathfinding();
 
-        let turret = TurretComponent {};
+        let specific = match entity.specific() {
+            SpecificComponentBuilder::None => SpecificComponent::None,
+            SpecificComponentBuilder::Turret(turret) => {
+                SpecificComponent::Turret(self.turret.insert((guid, turret)))
+            }
+            SpecificComponentBuilder::Inhibitor(inhib) => {
+                SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib)))
+            }
+            SpecificComponentBuilder::Minion(minion) => {
+                SpecificComponent::Minion(self.minions.insert((guid, minion)))
+            }
+        };
 
         let components = Entity {
             guid,
             position: self.position.insert((guid, position)),
-            specific: SpecificComponent::Turret(self.turret.insert((guid, turret))),
-            pathfinding: self.nopath_key,
-        };
-        self.entities.insert(guid, components);
-        guid
-    }
-
-    pub fn spawn_inhib(&mut self, index: InhibitorIndex) -> UnitId {
-        let guid = UnitId::from(index);
-        let pos = PositionComponent {
-            point: index.position(),
-            radius: index.radius(),
-        };
-        let inhib = InhibitorComponent::default();
-
-        let components = Entity {
-            guid,
-            position: self.position.insert((guid, pos)),
-            specific: SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib))),
-            pathfinding: self.nopath_key,
+            specific,
+            pathfinding: if pathfinding.is_static() {
+                self.nopath_key
+            } else {
+                self.pathfinding.insert((guid, pathfinding))
+            },
         };
         self.entities.insert(guid, components);
         guid
     }
 
     pub fn build(self) -> EntityStore {
-        let tree = rstar::RTree::bulk_load(
+        let world = rstar::RTree::bulk_load(
             self.position
                 .iter()
                 .map(|(_, (id, data))| GeomWithData::new(data.clone(), id.clone()))
@@ -89,8 +87,8 @@ impl EntityStoreBuilder {
             turret: self.turret,
             inhibitor: self.inhibitor,
             pathfinding: self.pathfinding,
-            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3), // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
-            tree,
+            minions: self.minions, // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
+            world,
         }
     }
 }

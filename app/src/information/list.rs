@@ -1,4 +1,4 @@
-use iced::{widget::canvas::Frame};
+use iced::widget::canvas::Frame;
 
 use super::DrawInformation;
 
@@ -33,7 +33,7 @@ impl DrawInformation for List {
             origin.x = drawable.position().x;
             drawable.height -= origin.y - max_y;
             origin.y = max_y;
-            
+
             rectangle.height -= rectangle.y - max_y;
             rectangle.y = max_y;
         }

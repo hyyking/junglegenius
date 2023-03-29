@@ -1,14 +1,13 @@
-
+use engine::{
+    ecs::Unit,
+    stats::WithUnitStats,
+    structures::{Inhibitor, Nexus, Turret, TurretState},
+    wave::Wave,
+    GameState,
+};
 use iced::{
     widget::canvas::{Frame, Path},
     Point, Rectangle,
-};
-use engine::{
-    stats::WithUnitStats,
-    structures::{Nexus, Inhibitor, Turret, TurretState},
-    ecs::Unit,
-    wave::Wave,
-    GameState,
 };
 
 use crate::{information::Card, minimap::geometry::MinimapGeometry, utils};
@@ -83,8 +82,7 @@ impl MinimapGeometry for &Turret {
         let structure = Path::circle(Point::new(point.x, point.y), self.radius());
 
         match self.state() {
-            TurretState::UpWithPlates { .. }
-            | TurretState::Up => {
+            TurretState::UpWithPlates { .. } | TurretState::Up => {
                 let stats = self.base_stats();
                 let range = Path::circle(Point::new(point.x, point.y), stats.range);
 

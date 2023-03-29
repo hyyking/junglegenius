@@ -1,14 +1,13 @@
-use crate::{ecs::Unit, core::Team};
+use crate::{core::Team, ecs::Unit};
 
 #[derive(Debug, Clone)]
 pub struct Nexus {
     team: Team,
 }
-    
 
 impl From<Team> for Nexus {
     fn from(team: Team) -> Self {
-        Self {team}
+        Self { team }
     }
 }
 

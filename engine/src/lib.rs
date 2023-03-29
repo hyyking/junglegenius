@@ -18,7 +18,6 @@ pub use ecs::structures;
 
 pub use ecs::units;
 use ecs::GameObject;
-use wave::WaveSpawner;
 
 use std::time::Duration;
 
@@ -42,36 +41,36 @@ pub struct MinimapEngine {
 
 impl Engine for MinimapEngine {
     fn on_start(&mut self, builder: &mut crate::ecs::builder::EntityStoreBuilder) {
-        builder.spawn_turret(TurretIndex::BLUE_TOP_OUTER);
-        builder.spawn_turret(TurretIndex::BLUE_TOP_INNER);
-        builder.spawn_turret(TurretIndex::BLUE_TOP_INHIB);
-        builder.spawn_turret(TurretIndex::RED_TOP_OUTER);
-        builder.spawn_turret(TurretIndex::RED_TOP_INNER);
-        builder.spawn_turret(TurretIndex::RED_TOP_INHIB);
-        builder.spawn_turret(TurretIndex::BLUE_MID_OUTER);
-        builder.spawn_turret(TurretIndex::BLUE_MID_INNER);
-        builder.spawn_turret(TurretIndex::BLUE_MID_INHIB);
-        builder.spawn_turret(TurretIndex::RED_MID_OUTER);
-        builder.spawn_turret(TurretIndex::RED_MID_INNER);
-        builder.spawn_turret(TurretIndex::RED_MID_INHIB);
-        builder.spawn_turret(TurretIndex::BLUE_BOT_OUTER);
-        builder.spawn_turret(TurretIndex::BLUE_BOT_INNER);
-        builder.spawn_turret(TurretIndex::BLUE_BOT_INHIB);
-        builder.spawn_turret(TurretIndex::RED_BOT_OUTER);
-        builder.spawn_turret(TurretIndex::RED_BOT_INNER);
-        builder.spawn_turret(TurretIndex::RED_BOT_INHIB);
-        builder.spawn_turret(TurretIndex::BLUE_TOP_NEXUS);
-        builder.spawn_turret(TurretIndex::BLUE_BOT_NEXUS);
-        builder.spawn_turret(TurretIndex::RED_BOT_NEXUS);
-        builder.spawn_turret(TurretIndex::RED_BOT_NEXUS);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_TOP_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_TOP_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_TOP_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_TOP_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_TOP_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_TOP_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_MID_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_MID_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_MID_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_MID_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_MID_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_MID_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_BOT_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_BOT_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_BOT_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_BOT_OUTER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_BOT_INNER);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_BOT_INHIB);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_TOP_NEXUS);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::BLUE_BOT_NEXUS);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_BOT_NEXUS);
+        builder.spawn(crate::ecs::structures::turret::TurretIndex::RED_BOT_NEXUS);
 
-        builder.spawn_inhib(InhibitorIndex::RED_TOP);
-        builder.spawn_inhib(InhibitorIndex::RED_MID);
-        builder.spawn_inhib(InhibitorIndex::RED_BOT);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::RED_TOP);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::RED_MID);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::RED_BOT);
 
-        builder.spawn_inhib(InhibitorIndex::BLUE_TOP);
-        builder.spawn_inhib(InhibitorIndex::BLUE_MID);
-        builder.spawn_inhib(InhibitorIndex::BLUE_BOT);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::BLUE_TOP);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::BLUE_MID);
+        builder.spawn(crate::ecs::structures::inhibitor::InhibitorIndex::BLUE_BOT);
     }
 
     fn on_step(&mut self, store: &mut crate::ecs::store::EntityStore, step: GameTimer) {
@@ -102,9 +101,15 @@ impl Engine for MinimapEngine {
                     .set_team(team)
                     .has_siege(ecs::spawners::wave::has_siege(spawn_timer))
                     .set_super([
-                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Top)).unwrap(),
-                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Mid)).unwrap(),
-                        store.get_inhib(InhibitorIndex(team.opposite(), Lane::Bot)).unwrap(),
+                        store
+                            .get_inhib(InhibitorIndex(team.opposite(), Lane::Top))
+                            .unwrap(),
+                        store
+                            .get_inhib(InhibitorIndex(team.opposite(), Lane::Mid))
+                            .unwrap(),
+                        store
+                            .get_inhib(InhibitorIndex(team.opposite(), Lane::Bot))
+                            .unwrap(),
                     ]);
                 while let Some(minion) = ecs::generic::spawner::EntitySpawner::spawn_next(&mut wave)
                 {
@@ -113,7 +118,7 @@ impl Engine for MinimapEngine {
                     let minion = store
                         .get_minion_mut(id)
                         .expect("minion should have spawned");
-                    
+
                     // pathfind minions from `spawn_timer` to `new_timer`
                     match minion.pathfind_for_duration(new_timer - spawn_timer) {
                         Ok(_) => {}

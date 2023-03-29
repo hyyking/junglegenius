@@ -1,6 +1,6 @@
 use iced::{
     widget::canvas::{Frame, Path, Program, Stroke},
-    Color, Vector, Rectangle,
+    Color, Rectangle, Vector,
 };
 
 mod list;
@@ -35,7 +35,7 @@ impl<Message> Program<Message> for InformationCanvas<'_> {
         );
 
         let padding = Vector::new(5.0, 5.0);
-        
+
         let card_height = bounds.size().height - 2.0 * padding.y;
         let card_width = bounds.size().width - 2.0 * padding.x;
         let size = iced::Size::new(card_width, card_height);
@@ -44,57 +44,59 @@ impl<Message> Program<Message> for InformationCanvas<'_> {
 
         let mut drawable = Rectangle::new(bounds.position() + padding, size);
         for card in self.cards {
-
-
             // let origin = bounds.position() + Vector::new(padding.x, current_y);
-            
 
             if drawable.y > bounds.size().height {
                 break;
             }
-/*
-            let path = Path::rectangle(origin, size);
-            frame.stroke(
-                &path,
-                Stroke::default()
-                    .with_color(Color::from_rgb(0.5, 0.5, 0.5))
-                    .with_width(1.0),
-            );
-*/
+            /*
+                        let path = Path::rectangle(origin, size);
+                        frame.stroke(
+                            &path,
+                            Stroke::default()
+                                .with_color(Color::from_rgb(0.5, 0.5, 0.5))
+                                .with_width(1.0),
+                        );
+            */
             let prev = drawable;
             drawable = card.draw_consume(drawable, &mut frame);
             let after = drawable;
 
             // current_y = rest.y + padding.y;
-            
-            let path = Path::rectangle(prev.position(), iced::Size::new(prev.width, after.position().y - prev.position().y));
+
+            let path = Path::rectangle(
+                prev.position(),
+                iced::Size::new(prev.width, after.position().y - prev.position().y),
+            );
             frame.stroke(
                 &path,
                 Stroke::default()
                     .with_color(Color::from_rgb(0.5, 0.5, 0.5))
                     .with_width(1.0),
             );
- 
+
             /*
-            let path = Path::rectangle(drawable.position(), drawable.size());
-            frame.fill(
-                &path,
-                Color::from_rgb8(u8::MAX, 0, 0),
-            );
- */
+                       let path = Path::rectangle(drawable.position(), drawable.size());
+                       frame.fill(
+                           &path,
+                           Color::from_rgb8(u8::MAX, 0, 0),
+                       );
+            */
         }
 
         vec![frame.into_geometry()]
     }
 }
 
-
 pub trait DrawInformation {
     // using available space in rectangle draw information and return the rest of the available rectangle
     fn draw_consume(&self, rect: iced::Rectangle, frame: &mut Frame) -> iced::Rectangle;
 }
 
-impl<T> DrawInformation for T where T: std::borrow::Borrow<str> {
+impl<T> DrawInformation for T
+where
+    T: std::borrow::Borrow<str>,
+{
     fn draw_consume(&self, mut rect: iced::Rectangle, frame: &mut Frame) -> iced::Rectangle {
         let this = self.borrow();
 

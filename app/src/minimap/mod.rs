@@ -7,9 +7,12 @@ use iced::{
     Point, Rectangle,
 };
 
-use engine::{GameState, MinimapEngine, ecs::{store::EntityStore, entity::EntityRef}};
+use engine::{
+    ecs::{entity::EntityRef, store::EntityStore},
+    GameState, MinimapEngine,
+};
 
-use crate::{information::Card, Message, utils};
+use crate::{information::Card, utils, Message};
 // use crate::wave::WaveSpawnerState;
 
 pub mod geometry;
@@ -28,7 +31,7 @@ pub const MAP_BOUNDS: Rectangle = Rectangle {
 
 pub struct Minimap<'a> {
     gamestate: &'a GameState,
-    store: &'a EntityStore
+    store: &'a EntityStore,
 }
 
 impl<'a> Minimap<'a> {
@@ -208,17 +211,17 @@ impl Program<Message> for Minimap<'_> {
         let mut frame = Frame::new(MAP_BOUNDS.size());
         frame.scale(bounds.width / MAP_BOUNDS.width);
         self.draw_map(&mut frame);
-/*
-        self.gamestate
-            .blue
-            .waves()
-            .for_each(|ws| ws.draw(&mut frame, self.gamestate));
+        /*
+                self.gamestate
+                    .blue
+                    .waves()
+                    .for_each(|ws| ws.draw(&mut frame, self.gamestate));
 
-        self.gamestate
-            .red
-            .waves()
-            .for_each(|ws| ws.draw(&mut frame, self.gamestate));
-*/
+                self.gamestate
+                    .red
+                    .waves()
+                    .for_each(|ws| ws.draw(&mut frame, self.gamestate));
+        */
         for minion in self.store.minions() {
             let pos = minion.position();
             let radius = minion.radius();
@@ -231,8 +234,7 @@ impl Program<Message> for Minimap<'_> {
                 &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
                 team,
             );
-        }      
+        }
         vec![frame.into_geometry()]
-        
     }
 }

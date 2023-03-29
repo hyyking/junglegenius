@@ -50,7 +50,6 @@ impl WaveSpawner {
             ranged: 3,
             superm,
         })
-        
     }
 }
 
@@ -70,11 +69,14 @@ impl EventProducer for WaveSpawner {
             Team::Blue => state.red.inhibs.super_minions(self.lane),
         };
 
-        Box::new(self.waves(&state.timer, superm).map(move |wave| Event::Wave {
-            team,
-            lane,
-            event: WaveEvent::Spawn(wave),
-        }))
+        Box::new(
+            self.waves(&state.timer, superm)
+                .map(move |wave| Event::Wave {
+                    team,
+                    lane,
+                    event: WaveEvent::Spawn(wave),
+                }),
+        )
     }
 }
 

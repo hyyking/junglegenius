@@ -32,10 +32,7 @@ impl Wave {
             .chain((0..self.ranged).map(|_| MinionType::Ranged))
     }
 
-    pub fn minions(
-        &self,
-        timer: &GameTimer,
-    ) -> impl Iterator<Item = Minion> {
+    pub fn minions(&self, timer: &GameTimer) -> impl Iterator<Item = Minion> {
         let upgrades = self.upgrades(timer);
         let ms_upgrades = self.ms_upgrades(timer);
         let mid_debuf = self.midlane_debuf(timer);
@@ -55,7 +52,12 @@ impl Wave {
                     },
                     interval: ms as f32,
                 };
-                lyon::algorithms::walk::walk_along_path(&path, pos - (i as f32 * 150.0), 0.1, &mut pattern);
+                lyon::algorithms::walk::walk_along_path(
+                    &path,
+                    pos - (i as f32 * 150.0),
+                    0.1,
+                    &mut pattern,
+                );
             }
             Minion {
                 team,

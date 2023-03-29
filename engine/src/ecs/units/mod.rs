@@ -1,5 +1,5 @@
-pub mod old_minion;
 pub mod minion;
+pub mod old_minion;
 
 #[derive(Debug)]
 pub enum UnitKind {

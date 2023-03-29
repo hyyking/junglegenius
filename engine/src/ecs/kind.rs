@@ -1,4 +1,7 @@
-use crate::{structures::{self, Inhibitor, Turret, Nexus}, units::{self, old_minion::Minion}};
+use crate::{
+    structures::{self, Inhibitor, Nexus, Turret},
+    units::{self, old_minion::Minion},
+};
 
 #[derive(Debug)]
 pub enum ObjectKind<'a> {

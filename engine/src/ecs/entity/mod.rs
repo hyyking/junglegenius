@@ -3,7 +3,10 @@ use rstar::primitives::GeomWithData;
 use crate::{
     core::Team,
     ecs::{
-        generic::{pathfinding::PathfindingComponent, PositionComponent},
+        generic::{
+            pathfinding::{PathfindError, PathfindingComponent},
+            PositionComponent,
+        },
         store::EntityStore,
         UnitId,
     },
@@ -11,8 +14,6 @@ use crate::{
 
 mod builder;
 pub use builder::{EntityBuilder, SpecificComponentBuilder};
-
-use super::generic::pathfinding::PathfindError;
 
 #[derive(Debug, Clone)]
 pub enum SpecificComponent {
@@ -104,7 +105,6 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
     }
 }
 
-
 pub trait EntityMut<'store>: EntityRef<'store> {
     fn store_mut(&self) -> &'store mut EntityStore;
 
@@ -117,8 +117,8 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         };
         let prev = std::mem::replace(self.position_component_mut(), to);
 
-        store.tree.remove(&GeomWithData::new(prev, self.guid()));
-        store.tree.insert(GeomWithData::new(to, self.guid()));
+        store.world.remove(&GeomWithData::new(prev, self.guid()));
+        store.world.insert(GeomWithData::new(to, self.guid()));
     }
 
     fn pathfind_for_duration(
@@ -159,7 +159,11 @@ pub trait EntityMut<'store>: EntityRef<'store> {
                 }
                 Ok(position)
             }
-            super::generic::pathfinding::Pathfinding::Dynamic { path, start, end } => {
+            super::generic::pathfinding::Pathfinding::Dynamic {
+                path: _path,
+                start: _start,
+                end: _end,
+            } => {
                 unimplemented!(
                     "maybe change start/end to a set duration after which no pathfinding is done"
                 )
@@ -174,7 +178,6 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         self.store_mut().remove_by_id(self.guid())
     }
 }
-
 
 pub(crate) trait EntityMutCrateExt<'store>: EntityMut<'store> {
     fn position_component_mut(&self) -> &'store mut PositionComponent {

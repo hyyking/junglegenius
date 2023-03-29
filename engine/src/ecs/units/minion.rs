@@ -1,4 +1,15 @@
-use crate::{ecs::{entity::{Entity, EntityRef, EntityMut, EntityBuilder, SpecificComponentBuilder}, store::EntityStore, generic::{pathfinding::LANE_PATHS, PositionComponent, PathfindingComponent}, self}, core::{Team, Lane}};
+use crate::{
+    core::{Lane, Team},
+    ecs::{
+        self,
+        entity::{Entity, EntityBuilder, EntityMut, EntityRef, SpecificComponentBuilder},
+        generic::{
+            pathfinding::{PathfindingComponent, LANE_PATHS},
+            PositionComponent,
+        },
+        store::EntityStore,
+    },
+};
 
 use super::old_minion::MinionType;
 
@@ -7,12 +18,10 @@ pub struct MinionComponent {
     pub kind: crate::units::old_minion::MinionType,
 }
 
-
 pub struct Minion<'store> {
     pub(crate) store: &'store crate::ecs::store::EntityStore,
     pub(crate) entity: &'store Entity,
 }
-
 
 impl<'store> EntityRef<'store> for Minion<'store> {
     fn store_ref(&self) -> &'store EntityStore {
@@ -23,12 +32,10 @@ impl<'store> EntityRef<'store> for Minion<'store> {
     }
 }
 
-
 pub struct MinionMut<'store> {
     pub(crate) store: &'store mut crate::ecs::store::EntityStore,
     pub(crate) entity: std::ptr::NonNull<Entity>,
 }
-
 
 impl MinionMut<'_> {
     pub fn get_state(&self) -> &MinionComponent {
@@ -51,8 +58,6 @@ impl<'store> EntityMut<'store> for MinionMut<'store> {
     }
 }
 
-
-
 impl<'a> std::fmt::Debug for MinionMut<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Turret")
@@ -62,7 +67,6 @@ impl<'a> std::fmt::Debug for MinionMut<'a> {
             .finish()
     }
 }
-
 
 #[derive(Default)]
 pub struct MinionBuilder {
@@ -153,16 +157,11 @@ impl EntityBuilder for MinionBuilder {
 
     fn pathfinding(&self) -> PathfindingComponent {
         // TODO: Dynamic speed
-        PathfindingComponent::persistent(
-            std::sync::Arc::clone(self.path()),
-            325.0,
-        )
-        .offset_position(self.offset)
+        PathfindingComponent::persistent(std::sync::Arc::clone(self.path()), 325.0)
+            .offset_position(self.offset)
     }
 
     fn specific(&self) -> SpecificComponentBuilder {
-        SpecificComponentBuilder::Minion(MinionComponent {
-            kind: self.kind(),
-        })
+        SpecificComponentBuilder::Minion(MinionComponent { kind: self.kind() })
     }
 }

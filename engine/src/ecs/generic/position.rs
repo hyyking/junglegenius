@@ -1,10 +1,8 @@
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PositionComponent {
     pub point: lyon::math::Point,
     pub radius: f32,
 }
-
 
 impl rstar::RTreeObject for PositionComponent {
     type Envelope = rstar::AABB<[f32; 2]>;
@@ -14,10 +12,8 @@ impl rstar::RTreeObject for PositionComponent {
     }
 }
 
-impl rstar::PointDistance for PositionComponent
-{
-    fn distance_2(&self, point: &[f32; 2]) -> f32
-    {
+impl rstar::PointDistance for PositionComponent {
+    fn distance_2(&self, point: &[f32; 2]) -> f32 {
         let origin = self.point.to_array();
         let d_x = origin[0] - point[0];
         let d_y = origin[1] - point[1];
@@ -30,8 +26,7 @@ impl rstar::PointDistance for PositionComponent
 
     // This implementation is not required but more efficient since it
     // omits the calculation of a square root
-    fn contains_point(&self, point: &[f32; 2]) -> bool
-    {
+    fn contains_point(&self, point: &[f32; 2]) -> bool {
         let origin = self.point.to_array();
         let d_x = origin[0] - point[0];
         let d_y = origin[1] - point[1];

@@ -3,20 +3,16 @@ use std::{collections::HashMap, ptr::NonNull};
 use rstar::primitives::GeomWithData;
 
 use crate::{
-    core::{Lane, Team},
     ecs::{
-        entity::{
-            Entity, SpecificComponent,
-        },
-        generic::PositionComponent,
+        entity::{Entity, EntityBuilder, SpecificComponent, SpecificComponentBuilder},
+        generic::{pathfinding::PathfindingComponent, PositionComponent},
         UnitId,
     },
-    units::{old_minion::MinionType, minion::{MinionComponent, MinionMut, Minion}}, structures::{turret::{TurretComponent, Turret}, inhibitor::{Inhibitor, InhibitorComponent}},
-};
-
-use super::{
-    entity::{EntityBuilder, SpecificComponentBuilder},
-    generic::pathfinding::{PathfindingComponent, LANE_PATHS},
+    structures::{
+        inhibitor::{Inhibitor, InhibitorComponent},
+        turret::{Turret, TurretComponent},
+    },
+    units::minion::{Minion, MinionComponent, MinionMut},
 };
 
 type PointId = rstar::primitives::GeomWithData<PositionComponent, UnitId>;
@@ -31,11 +27,10 @@ pub struct EntityStore {
     pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
 
-    pub(crate) tree: rstar::RTree<PointId>,
+    pub(crate) world: rstar::RTree<PointId>,
 }
 
 impl EntityStore {
-
     pub fn spawn(&mut self, entity: impl EntityBuilder) -> UnitId {
         let guid = entity.guid();
         let position = entity.position();
@@ -43,9 +38,15 @@ impl EntityStore {
 
         let specific = match entity.specific() {
             SpecificComponentBuilder::None => SpecificComponent::None,
-            SpecificComponentBuilder::Turret(turret) => SpecificComponent::Turret(self.turret.insert((guid, turret))),
-            SpecificComponentBuilder::Inhibitor(inhib) => SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib))),
-            SpecificComponentBuilder::Minion(minion) => SpecificComponent::Minion(self.minions.insert((guid, minion))),
+            SpecificComponentBuilder::Turret(turret) => {
+                SpecificComponent::Turret(self.turret.insert((guid, turret)))
+            }
+            SpecificComponentBuilder::Inhibitor(inhib) => {
+                SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib)))
+            }
+            SpecificComponentBuilder::Minion(minion) => {
+                SpecificComponent::Minion(self.minions.insert((guid, minion)))
+            }
         };
 
         let components = Entity {
@@ -54,33 +55,7 @@ impl EntityStore {
             specific,
             pathfinding: self.pathfinding.insert((guid, pathfinding)),
         };
-        self.tree.insert(GeomWithData::new(position, guid));
-        self.entities.insert(guid, components);
-        guid
-    }
-
-    pub fn spawn_minion(&mut self, team: Team, lane: Lane, kind: MinionType) -> UnitId {
-        let guid = UnitId::new(Some(team), Some(lane));
-
-        let path = std::sync::Arc::clone(&LANE_PATHS[(team, lane)]);
-
-        let pos = PositionComponent {
-            point: path.first_endpoint().unwrap().0,
-            radius: kind.radius(),
-        };
-
-        let pathfinding = PathfindingComponent::persistent(path, 325.0); // TODO: Adjust speed
-
-        let specific = MinionComponent { kind };
-
-        let components = Entity {
-            guid,
-            position: self.position.insert((guid, pos)),
-            specific: SpecificComponent::Minion(self.minions.insert((guid, specific))),
-            pathfinding: self.pathfinding.insert((guid, pathfinding)),
-        };
-
-        self.tree.insert(GeomWithData::new(pos, guid));
+        self.world.insert(GeomWithData::new(position, guid));
         self.entities.insert(guid, components);
         guid
     }
@@ -143,7 +118,7 @@ impl EntityStore {
         let entity = self.entities.remove(&id).ok_or(())?;
 
         let (id, pos) = self.position.try_remove(entity.position).ok_or(())?;
-        self.tree.remove(&GeomWithData::new(pos, id)).ok_or(())?;
+        self.world.remove(&GeomWithData::new(pos, id)).ok_or(())?;
 
         self.pathfinding.try_remove(entity.pathfinding).ok_or(())?;
 

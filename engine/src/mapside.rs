@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 use crate::{
     core::{GameTimer, Lane, Team},
     event::{EventConsumer, EventProducer},
-    structures::{Inhibitors, LaneTurrets, Turret, TurretKind, old_nexus::Nexus},
+    structures::{old_nexus::Nexus, Inhibitors, LaneTurrets, Turret, TurretKind},
     wave::{Wave, Waves},
 };
 

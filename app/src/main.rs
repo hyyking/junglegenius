@@ -2,19 +2,19 @@
 
 use std::time::Duration;
 
-use engine::MinimapEngine;
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
-use iced::widget::canvas;
-use iced::widget::{column, container, image, slider, text};
-use iced::{Element, Length, Point, Sandbox, Settings};
 use engine::event::EventConsumer;
+use engine::MinimapEngine;
 use engine::{
     core::{GameTimer, Team},
     event::TurretEvent,
     stats::WithUnitStats,
     structures::TurretIndex,
 };
+use iced::widget::canvas;
+use iced::widget::{column, container, image, slider, text};
+use iced::{Element, Length, Point, Sandbox, Settings};
 
 mod information;
 mod map_overlay;
@@ -57,7 +57,7 @@ impl Sandbox for Slider {
     fn new() -> Slider {
         let slider_value = 60;
         let gamestate = GameState::from_secs(slider_value as usize);
-        
+
         let mut builder = EntityStoreBuilder::new();
         let mut engine = MinimapEngine {
             timer: GameTimer::GAME_START,
@@ -65,8 +65,11 @@ impl Sandbox for Slider {
         engine::Engine::on_start(&mut engine, &mut builder);
         let mut store = builder.build();
 
-        engine::Engine::on_step(&mut engine, &mut store, GameTimer(Duration::from_secs(slider_value as u64)));
-
+        engine::Engine::on_step(
+            &mut engine,
+            &mut store,
+            GameTimer(Duration::from_secs(slider_value as u64)),
+        );
 
         Slider {
             slider_value,
@@ -88,34 +91,27 @@ impl Sandbox for Slider {
                 let forward = self.slider_value <= value;
 
                 if forward {
-                    self.gamestate.step_update_callback(
-                        Duration::from_secs(u64::from(value - self.slider_value)),
-                        |_| {},
-                    );
+                    let step = GameTimer(Duration::from_secs(u64::from(value - self.slider_value)));
+                    self.gamestate.step_update_callback(step.0, |_| {});
 
-                    engine::Engine::on_step(&mut self.engine, &mut self.store, GameTimer(Duration::from_secs(u64::from(value - self.slider_value))));
+                    engine::Engine::on_step(&mut self.engine, &mut self.store, step);
                 }
 
                 if self.gamestate.timer == GameTimer(Duration::from_secs(2 * 60)) {
-                    self.gamestate
-                        .on_event(engine::event::Event::Turret(
-                            TurretIndex::BLUE_TOP_OUTER,
-                            TurretEvent::Fall,
-                        ));
-                    self.gamestate
-                        .on_event(engine::event::Event::Inhibitor {
-                            team: Team::Red,
-                            lane: Lane::Bot,
-                            event: engine::event::InhibitorEvent::Fall(
-                                self.gamestate.timer,
-                            ),
-                        });
+                    self.gamestate.on_event(engine::event::Event::Turret(
+                        TurretIndex::BLUE_TOP_OUTER,
+                        TurretEvent::Fall,
+                    ));
+                    self.gamestate.on_event(engine::event::Event::Inhibitor {
+                        team: Team::Red,
+                        lane: Lane::Bot,
+                        event: engine::event::InhibitorEvent::Fall(self.gamestate.timer),
+                    });
 
-                    self.gamestate
-                        .on_event(engine::event::Event::Turret(
-                            TurretIndex::BLUE_MID_OUTER,
-                            TurretEvent::TakePlate,
-                        ));
+                    self.gamestate.on_event(engine::event::Event::Turret(
+                        TurretIndex::BLUE_MID_OUTER,
+                        TurretEvent::TakePlate,
+                    ));
                 }
 
                 self.slider_value = value;
@@ -154,7 +150,7 @@ impl Sandbox for Slider {
             Message::StepRight => self.update(Message::SliderChanged(self.slider_value + 1)),
             Message::DragSink(id, point, card) => {
                 /* self.waves[id].move_sink(point);
-                *self.cards.last_mut().expect("no sink??") = card;  */
+                 *self.cards.last_mut().expect("no sink??") = card;  */
             }
         }
     }
@@ -167,10 +163,7 @@ impl Sandbox for Slider {
 
         let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
 
-        let overlay = canvas(minimap::Minimap::new(
-            &self.gamestate,
-            &self.store
-        ));
+        let overlay = canvas(minimap::Minimap::new(&self.gamestate, &self.store));
 
         let widget = map_overlay::MapWidget::new(
             overlay,

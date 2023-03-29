@@ -1,8 +1,8 @@
+pub mod inhibitor;
 mod old_inhibitor;
 pub mod old_nexus;
 mod old_turret;
 pub mod turret;
-pub mod inhibitor;
 
 pub use old_inhibitor::*;
 pub use old_nexus::*;

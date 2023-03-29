@@ -41,7 +41,7 @@ where
 {
 }
 
-#[derive(Debug, Default,  Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct UnitStatistics {
     /* Offensive Stats */
     pub ability_power: f32,

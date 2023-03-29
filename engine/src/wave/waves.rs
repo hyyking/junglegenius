@@ -16,18 +16,18 @@ pub struct WaveStates {
 
 impl EventConsumer<WaveEvent> for WaveStates {
     fn on_timer_consume(&mut self, timer: crate::core::GameTimer) {
-        
         for wave in self.waves.iter_mut() {
             // Position in capped at the area of the map :/
             wave.position = match wave.position {
                 Some(position) => {
-                    let new_pos = position + (wave.movespeed(&timer) as f32 * (timer - self.prev).as_secs_f32());
+                    let new_pos = position
+                        + (wave.movespeed(&timer) as f32 * (timer - self.prev).as_secs_f32());
                     if new_pos > lyon::algorithms::length::approximate_length(&self.path, 0.1) {
                         None
                     } else {
                         Some(new_pos)
                     }
-                },
+                }
                 None => None,
             };
         }

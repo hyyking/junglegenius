@@ -5,8 +5,8 @@ use std::{
 
 use crate::{
     core::{GameTimer, Lane, Team},
-    event::{EventConsumer, InhibitorEvent},
     ecs::Unit,
+    event::{EventConsumer, InhibitorEvent},
 };
 
 use super::MAP_BOUNDS;
@@ -18,7 +18,7 @@ impl InhibitorIndex {
     pub const RED_TOP: Self = Self(Team::Red, Lane::Top);
     pub const RED_MID: Self = Self(Team::Red, Lane::Mid);
     pub const RED_BOT: Self = Self(Team::Red, Lane::Bot);
-    
+
     pub const BLUE_TOP: Self = Self(Team::Blue, Lane::Top);
     pub const BLUE_MID: Self = Self(Team::Blue, Lane::Mid);
     pub const BLUE_BOT: Self = Self(Team::Blue, Lane::Bot);
@@ -112,7 +112,9 @@ impl Unit for Inhibitor {
             (Team::Blue, Lane::Mid) => lyon::math::Point::new(3203.0, MAP_BOUNDS.height - 3208.0),
             (Team::Blue, Lane::Bot) => lyon::math::Point::new(3452.0, MAP_BOUNDS.height - 1236.0),
 
-            (Team::Red, Lane::Nexus) | (Team::Blue, Lane::Nexus) => lyon::math::Point::new(0.0, 0.0),
+            (Team::Red, Lane::Nexus) | (Team::Blue, Lane::Nexus) => {
+                lyon::math::Point::new(0.0, 0.0)
+            }
         }
     }
 

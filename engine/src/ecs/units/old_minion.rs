@@ -1,6 +1,8 @@
-use crate::{stats::{GoldCollectable, UnitStatistics, WithUnitStats}, core::Team, ecs::Unit};
-
-
+use crate::{
+    core::Team,
+    ecs::Unit,
+    stats::{GoldCollectable, UnitStatistics, WithUnitStats},
+};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum MinionType {
@@ -70,7 +72,7 @@ impl Unit for Minion {
     }
 
     fn radius(&self) -> f32 {
-        self.ty.radius() 
+        self.ty.radius()
     }
 }
 
@@ -169,7 +171,8 @@ impl WithUnitStats for Minion {
                 } else {
                     stats.health + 62.0 * 5.0 + 87.0 * (upgrades - 5.0)
                 };
-                stats.attack_damage = stats.attack_damage + 1.5 * (self.upgrades as f32).min(6667.0);
+                stats.attack_damage =
+                    stats.attack_damage + 1.5 * (self.upgrades as f32).min(6667.0);
             }
             MinionType::SuperMinion => {
                 // https://leagueoflegends.fandom.com/wiki/Super_minion

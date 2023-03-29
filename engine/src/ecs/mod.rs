@@ -1,15 +1,15 @@
 use crate::core::{Lane, Team};
 
-use self::structures::{TurretIndex, InhibitorIndex};
+use self::structures::{InhibitorIndex, TurretIndex};
 
 pub mod builder;
 pub mod entity;
 pub mod generic;
 mod kind;
+pub mod spawners;
 pub mod store;
 pub mod structures;
 pub mod units;
-pub mod spawners;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
 pub struct UnitId(u64);
@@ -80,8 +80,6 @@ impl UnitId {
             _ => None,
         }
     }
-
-
 }
 
 impl From<TurretIndex> for UnitId {
@@ -103,8 +101,39 @@ impl From<TurretIndex> for UnitId {
     }
 }
 
+impl From<crate::ecs::structures::turret::TurretIndex> for UnitId {
+    fn from(value: crate::ecs::structures::turret::TurretIndex) -> Self {
+        let team = value.0;
+        let lane = value.1;
+        let kind = value.2;
+
+        let (mut id, _) = Self::from_tl(Some(team), Some(lane));
+        let offset = 32;
+        id |= match kind {
+            crate::ecs::structures::turret::TurretKind::Outer => 1 << offset,
+            crate::ecs::structures::turret::TurretKind::Inner => 2 << offset,
+            crate::ecs::structures::turret::TurretKind::Inhib => 3 << offset,
+            crate::ecs::structures::turret::TurretKind::NexusBot => 4 << offset,
+            crate::ecs::structures::turret::TurretKind::NexusTop => 5 << offset,
+        };
+        Self(id)
+    }
+}
+
 impl From<InhibitorIndex> for UnitId {
     fn from(value: InhibitorIndex) -> Self {
+        let team = value.0;
+        let lane = value.1;
+
+        let (mut id, _) = Self::from_tl(Some(team), Some(lane));
+        let offset = 32;
+        id |= 6 << offset;
+        Self(id)
+    }
+}
+
+impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
+    fn from(value: crate::ecs::structures::inhibitor::InhibitorIndex) -> Self {
         let team = value.0;
         let lane = value.1;
 

@@ -1,5 +1,5 @@
-use iced::Color;
 use engine::core::Team;
+use iced::Color;
 
 pub fn team_color(team: Team) -> Color {
     match team {
