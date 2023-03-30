@@ -1,15 +1,15 @@
+use std::ops::Add;
+
 use iced::{
     event::Status,
     keyboard::KeyCode,
     mouse::{Button, Event},
     theme::Theme,
-    widget::canvas::{Cursor, Event as CanvasEvent, Frame, Geometry, Program},
-    Point, Rectangle,
+    widget::canvas::{Cursor, Event as CanvasEvent, Frame, Geometry, Program, Stroke},
+    Color, Point, Rectangle,
 };
 
-use engine::{
-    ecs::{entity::EntityRef, store::EntityStore},
-};
+use engine::ecs::{entity::EntityRef, store::EntityStore, units::minion::Minion};
 
 use crate::{information::Card, utils, Message};
 
@@ -35,32 +35,32 @@ impl<'a> Minimap<'a> {
     pub fn new(store: &'a EntityStore) -> Self {
         Self { store }
     }
-/*
-    fn draw_map(&self, frame: &mut Frame) {
-        self.gamestate.blue.nexus.draw(frame, self.gamestate);
-        self.gamestate.red.nexus.draw(frame, self.gamestate);
+    /*
+       fn draw_map(&self, frame: &mut Frame) {
+           self.gamestate.blue.nexus.draw(frame, self.gamestate);
+           self.gamestate.red.nexus.draw(frame, self.gamestate);
 
-        self.gamestate
-            .red
-            .turrets()
-            .for_each(|turret| turret.draw(frame, self.gamestate));
-        self.gamestate
-            .blue
-            .turrets()
-            .for_each(|turret| turret.draw(frame, self.gamestate));
+           self.gamestate
+               .red
+               .turrets()
+               .for_each(|turret| turret.draw(frame, self.gamestate));
+           self.gamestate
+               .blue
+               .turrets()
+               .for_each(|turret| turret.draw(frame, self.gamestate));
 
-        self.gamestate
-            .blue
-            .inhibs
-            .iter()
-            .for_each(|inhib| inhib.draw(frame, self.gamestate));
-        self.gamestate
-            .red
-            .inhibs
-            .iter()
-            .for_each(|inhib| inhib.draw(frame, self.gamestate));
-    }
- */
+           self.gamestate
+               .blue
+               .inhibs
+               .iter()
+               .for_each(|inhib| inhib.draw(frame, self.gamestate));
+           self.gamestate
+               .red
+               .inhibs
+               .iter()
+               .for_each(|inhib| inhib.draw(frame, self.gamestate));
+       }
+    */
     fn get_cards(&self, point: Point) -> Vec<Card> {
         /*
         let blue_nexus = self.gamestate.blue.nexus.describe(self.gamestate, point);
@@ -210,7 +210,6 @@ impl Program<Message> for Minimap<'_> {
     ) -> Vec<Geometry> {
         let mut frame = Frame::new(MAP_BOUNDS.size());
         frame.scale(bounds.width / MAP_BOUNDS.width);
-        
 
         for data in self.store.world.iter() {
             let id = data.data;
@@ -229,31 +228,163 @@ impl Program<Message> for Minimap<'_> {
                 team,
             );
         }
-        /*
-                self.gamestate
-                    .blue
-                    .waves()
-                    .for_each(|ws| ws.draw(&mut frame, self.gamestate));
 
-                self.gamestate
-                    .red
-                    .waves()
-                    .for_each(|ws| ws.draw(&mut frame, self.gamestate));
-        
-        for minion in self.store.minions() {
-            let pos = minion.position();
-            let radius = minion.radius();
-            let team = if let Some(team) = minion.team() {
-                utils::team_color(team)
-            } else {
-                iced::Color::from_rgb8(80, 80, 80)
-            };
-            frame.fill(
-                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
-                team,
+        fn debug_tree<T: rstar::RTreeObject<Envelope = rstar::AABB<[f32; 2]>>>(
+            node: &rstar::ParentNode<T>,
+            frame: &mut Frame,
+            r: f32,
+            g: u8,
+
+        ) {
+            let a = node.envelope();
+            let [x, y] = a.lower();
+            let [w, h] = a.upper();
+            
+            frame.stroke(
+                &iced::widget::canvas::Path::rectangle(
+                    iced::Point::new(x, y),
+                    iced::Size::new(w - x, h - y),
+                ),
+                iced::widget::canvas::Stroke::default().with_width(1.0).with_color(iced::Color::from_rgba8(0, g, 255 - g, r)),
             );
+
+            for (g, child) in node.children().iter().enumerate() {
+                match child {
+                    rstar::RTreeNode::Leaf(bb) => {
+                        let a = bb.envelope();
+                        let [x, y] = a.lower();
+                        let [w, h] = a.upper();
+                        
+                        frame.fill(
+                            &iced::widget::canvas::Path::rectangle(
+                                iced::Point::new(x, y),
+                                iced::Size::new((w - x).max(5.0), (h - y).max(5.0)),
+                            ),
+                            iced::Color::from_rgba8(255, 0, 0, 1.0)// iced::widget::canvas::Stroke::default().with_width(5.0).with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
+                        );
+                    }
+                    rstar::RTreeNode::Parent(node) => {
+                        debug_tree(node, frame, (r + 0.1).clamp(0.0, 1.0), (g as u8).saturating_mul(64))
+                    }
+                };
+            }
         }
+        debug_tree(self.store.world.root(), &mut frame, 0.2, 0);
+
+        /*
+               for minion in self.store.minions().map(|minion| minion.guid()) {
+                if !matches!(team, Some(engine::core::Team::Blue)) {
+                       continue;
+                   }
         */
+        if let Some(minion) =  self.store.minions().next().map(|minion| minion.guid()) {
+                   let team = minion.team();
+
+                   let minion_pos = self.store.get_minion(minion).unwrap().position().clone();
+
+                   let query_radius = 500.0;
+                   let minion_adj = (minion_pos.x.floor() as usize, minion_pos.y.floor() as usize);
+                   let x0 = (
+                       (minion_adj.0 - query_radius as usize),
+                       (minion_adj.1 - query_radius as usize),
+                   );
+                   let minion_pos_rel = (minion_adj.0 - x0.0, minion_adj.1 - x0.1);
+
+                   frame.fill(
+                       &iced::widget::canvas::Path::circle(
+                           iced::Point::new(
+                               (minion_pos_rel.0 + x0.0) as f32,
+                               (minion_pos_rel.1 + x0.1) as f32,
+                           ),
+                           100.0,
+                       ),
+                       Color::from_rgb8(0, u8::MAX, 0),
+                   );
+
+                   let goal = self
+                       .store
+                       .world
+                       .nearest_neighbor_iter_with_distance_2(&minion_pos.to_array())
+                       .take_while(|(_, distance)| *distance < (query_radius * query_radius))
+                       .filter(|(id, _)| id.data.team() != team && id.data.is_turret())
+                       .next();
+
+                   if let Some(id) = goal.map(|(g, _)| g.data) {
+                       let entity = self.store.get_raw_by_id(id).unwrap();
+                       let goal_pos = self.store.position[entity.position].1.point;
+                       let goal_adj = (goal_pos.x.floor() as usize, goal_pos.y.floor() as usize);
+
+                       let goal_pos_rel = (goal_adj.0.saturating_sub(x0.0), goal_adj.1.saturating_sub(x0.1));
+
+
+                       let mut grid = self
+                           .store
+                           .world
+                           .locate_within_distance(minion_pos.to_array(), query_radius * query_radius)
+                           .cloned()
+                           .map(|g| {
+                               let pos = g.geom().point;
+                               (pos.x.floor() as usize - x0.0, pos.y.floor() as usize - x0.1)
+                           })
+                           .collect::<pathfinding::grid::Grid>();
+
+
+                       grid.invert();
+                       grid.enable_diagonal_mode();
+                       grid.fill();
+
+                       for (x, y) in grid.iter() {
+                           if x % 10 != 0 || y % 10 != 0 {
+                               continue;
+                           }
+
+                           frame.fill(
+                               &iced::widget::canvas::Path::rectangle(
+                                   iced::Point::new((x + x0.0 + 1) as f32, (y + x0.1 + 1) as f32),
+                                   iced::Size::new(8.0, 8.0),
+                               ),
+                               Color::from_rgba8(0, 0, u8::MAX, 0.5),
+                           );
+                       }
+
+
+                       frame.fill(
+                           &iced::widget::canvas::Path::circle(
+                               iced::Point::new(goal_pos.x, goal_pos.y),
+                               80.0,
+                           ),
+                           Color::from_rgb8(u8::MAX, 0, 0),
+                       );
+
+                       let path = pathfinding::directed::astar::astar(
+                           &minion_pos_rel,
+                           |pos| grid.neighbours(*pos).into_iter().map(|a| (a, 1)),
+                           |m| m.0.abs_diff(goal_pos_rel.0) + m.1.abs_diff(goal_pos_rel.1),
+                           |pos| pos == &goal_pos_rel,
+                       );
+
+                       if let Some((path, _)) = path {
+                           let path = iced::widget::canvas::Path::new(|builder| {
+                               builder.move_to(iced::Point::new(minion_pos.x, minion_pos.y));
+
+                               let mut prev = minion_pos_rel;
+                               for (x, y) in path {
+                                   let distance = x.abs_diff(prev.0) + y.abs_diff(prev.1);
+                                   if distance < 5 {
+                                       continue;
+                                   }
+                                   let point = iced::Point::new((x + x0.0) as f32, (y + x0.1) as f32);
+                                   builder.line_to(point);
+                                   builder.move_to(point);
+                                   prev = (x, y);
+                               }
+                           });
+
+                           frame.stroke(&path, Stroke::default().with_width(1.0).with_color(Color::from_rgb8(u8::MAX, 0, 0)));
+                       }
+                   }
+               }
+
         vec![frame.into_geometry()]
     }
 }

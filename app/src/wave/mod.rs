@@ -26,7 +26,7 @@ impl WaveSpawnerState {
         
         let position = sampler.sample(if reversed { 1.0 - DEFAULT_POS } else { DEFAULT_POS }).position();
         let sink = WaveSink { position, absorbed: false, waves: vec![] };
-        dbg!(team, lane);
+
         Self {
             measurements,
             path,

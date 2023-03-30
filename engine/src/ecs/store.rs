@@ -20,7 +20,7 @@ type WithId<T> = (UnitId, T);
 
 pub struct EntityStore {
     pub(crate) entities: HashMap<UnitId, Entity>,
-    pub(crate) position: slab::Slab<WithId<PositionComponent>>,
+    pub position: slab::Slab<WithId<PositionComponent>>,
     pub(crate) pathfinding: slab::Slab<WithId<PathfindingComponent>>,
 
     pub(crate) turret: slab::Slab<WithId<TurretComponent>>,

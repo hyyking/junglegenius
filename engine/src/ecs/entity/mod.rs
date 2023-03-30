@@ -150,6 +150,7 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         }
     }
 
+
     fn delete(self) -> Result<UnitId, ()>
     where
         Self: Sized,

@@ -12,3 +12,5 @@ iced_graphics = { version = "0.7" }
 engine = { path = "../engine" }
 either = { version = "1.8" }
 lyon = { version = "1" }
+pathfinding = {version="4"}
+rstar = {version = "0.10"}

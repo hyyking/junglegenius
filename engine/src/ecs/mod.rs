@@ -84,6 +84,11 @@ impl UnitId {
         self.0 == 0
     }
 
+    pub fn is_turret(&self) -> bool {
+        let id = self.0 >> 32;
+        id <= Self::NEXUS_BOT_TURRET
+    }
+
     pub fn team(&self) -> Option<Team> {
         let masked = self.0 & 0b1111;
         match masked {
