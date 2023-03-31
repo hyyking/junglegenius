@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["app", "engine"]
+members = ["app", "engine", "oobb", "svg2geojson"]

@@ -1,4 +1,4 @@
-use rstar::primitives::GeomWithData;
+use rstar::{primitives::GeomWithData, Envelope};
 
 use crate::{
     core::Team,
@@ -84,6 +84,18 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
     }
 }
 
+struct UnitRemoval(lyon::math::Point, UnitId);
+
+impl rstar::SelectionFunction<GeomWithData<PositionComponent, UnitId>> for UnitRemoval {
+    fn should_unpack_parent(&self, envelope: &oobb::OOBB) -> bool {
+        envelope.contains_point(&[self.0.x, self.0.y])
+    }
+    fn should_unpack_leaf(&self, leaf: &GeomWithData<PositionComponent, UnitId>) -> bool {
+        leaf.data == self.1
+    }
+}
+
+
 pub trait EntityMut<'store>: EntityRef<'store> {
     fn store_mut(&self) -> &'store mut EntityStore;
 
@@ -96,7 +108,7 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         };
         let prev = std::mem::replace(self.position_component_mut(), to);
 
-        store.world.remove(&GeomWithData::new(prev, self.guid()));
+        store.world.remove_with_selection_function(UnitRemoval(prev.point, self.guid()));
         store.world.insert(GeomWithData::new(to, self.guid()));
     }
 

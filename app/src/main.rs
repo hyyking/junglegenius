@@ -2,15 +2,15 @@
 
 use std::time::Duration;
 
+use engine::core::GameTimer;
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
 use engine::MinimapEngine;
-use engine::{
-    core::{GameTimer},
-};
+use geojson::{FeatureCollection, GeoJson};
+use iced::theme::Palette;
 use iced::widget::canvas;
 use iced::widget::{column, container, image, slider, text};
-use iced::{Element, Length, Point, Sandbox, Settings};
+use iced::{Element, Length, Point, Sandbox, Settings, Color};
 
 mod information;
 mod map_overlay;
@@ -43,12 +43,17 @@ pub struct Slider {
 
     store: EntityStore,
     engine: MinimapEngine,
+    features: FeatureCollection,
 }
 
 impl Sandbox for Slider {
     type Message = Message;
 
     fn new() -> Slider {
+        let file = std::fs::File::open("map.json").unwrap();
+
+        let features = FeatureCollection::try_from(GeoJson::from_reader(&file).unwrap()).unwrap();
+
         let slider_value = 60;
 
         let mut builder = EntityStoreBuilder::new();
@@ -70,6 +75,7 @@ impl Sandbox for Slider {
             current_point: None,
             engine,
             store,
+            features,
         }
     }
 
@@ -158,7 +164,7 @@ impl Sandbox for Slider {
 
         let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
 
-        let overlay = canvas(minimap::Minimap::new(&self.store));
+        let overlay = canvas(minimap::Minimap::new(&self.store, &self.features));
 
         let widget = map_overlay::MapWidget::new(
             overlay,
@@ -196,5 +202,16 @@ impl Sandbox for Slider {
         .align_x(iced_native::alignment::Horizontal::Center)
         .align_y(iced_native::alignment::Vertical::Center)
         .into()
+    }
+
+    fn theme(&self) -> iced::Theme {
+        let a = iced::theme::Custom::new(Palette {
+            background: Color::from_rgb8(85, 85, 85),
+            text: Color::WHITE,
+            primary: Color::WHITE,
+            success: Color::from_rgb8(0, 255, 0),
+            danger: Color::from_rgb8(255, 0, 0),
+        });
+        iced::Theme::Custom(Box::new(a))
     }
 }
