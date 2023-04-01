@@ -17,16 +17,20 @@ pub fn build_path(svg: &str) -> Path {
     for op in parse::path_to_operations(svg) {
         match op {
             Operation::M(to) => SvgPathBuilder::move_to(&mut builder, to),
-            Operation::L(to) => SvgPathBuilder::line_to(&mut builder, to),
+            Operation::L(to) => {
+                SvgPathBuilder::line_to(&mut builder, to);
+            }
             Operation::Q { ctrl, to } => {
-                SvgPathBuilder::quadratic_bezier_to(&mut builder, ctrl, to)
+                SvgPathBuilder::quadratic_bezier_to(&mut builder, ctrl, to);
             }
             Operation::A {
                 radii,
                 x_rotation,
                 flags,
                 to,
-            } => SvgPathBuilder::arc_to(&mut builder, radii, x_rotation, flags, to),
+            } => {
+                SvgPathBuilder::arc_to(&mut builder, radii, x_rotation, flags, to);
+            }
             Operation::Close => SvgPathBuilder::close(&mut builder),
         };
     }
@@ -44,7 +48,7 @@ pub fn sample_path(path: &Path, sample_interval: f32) -> LineStringType {
         },
         interval: sample_interval,
     };
-    lyon_algorithms::walk::walk_along_path(path, 0.0, 0.0, &mut pattern);
+    lyon_algorithms::walk::walk_along_path(path, 0.0, 0.1, &mut pattern);
     samples
 }
 
@@ -75,7 +79,7 @@ pub fn svg2geojson_filter_rgb(
                 let fill = attrs.get("fill").ok_or(Error::GetRGB)?.deref();
                 let (_, rgb) = parse::parse_rgb(fill).map_err(|_| Error::ParseRGB)?;
 
-                if filter(rgb) {
+                if !filter(rgb) {
                     continue;
                 }
 
