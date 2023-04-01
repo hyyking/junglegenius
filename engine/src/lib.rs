@@ -6,6 +6,7 @@ pub mod ecs;
 
 pub mod core;
 pub mod stats;
+pub mod nav_engine;
 
 use crate::{
     core::{GameTimer, Lane, Team},
@@ -29,6 +30,8 @@ pub struct MinimapEngine {
 
 impl Engine for MinimapEngine {
     fn on_start(&mut self, builder: &mut crate::ecs::builder::EntityStoreBuilder) {
+        builder.load_map("engine/map.json");
+        
         builder.spawn(turret::TurretIndex::BLUE_TOP_OUTER);
         builder.spawn(turret::TurretIndex::BLUE_TOP_INNER);
         builder.spawn(turret::TurretIndex::BLUE_TOP_INHIB);

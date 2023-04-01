@@ -9,7 +9,10 @@ use iced::{
     Color, Point, Rectangle,
 };
 
-use engine::ecs::{entity::EntityRef, store::EntityStore, units::minion::Minion};
+use engine::{
+    ecs::{entity::EntityRef, store::EntityStore, units::minion::Minion},
+    nav_engine::CollisionBox,
+};
 
 use crate::{information::Card, utils, Message};
 
@@ -29,39 +32,13 @@ pub const MAP_BOUNDS: Rectangle = Rectangle {
 
 pub struct Minimap<'a> {
     store: &'a EntityStore,
-    features: &'a geojson::FeatureCollection,
 }
 
 impl<'a> Minimap<'a> {
-    pub fn new(store: &'a EntityStore, features: &'a geojson::FeatureCollection) -> Self {
-        Self { store, features }
+    pub fn new(store: &'a EntityStore) -> Self {
+        Self { store }
     }
-    /*
-       fn draw_map(&self, frame: &mut Frame) {
-           self.gamestate.blue.nexus.draw(frame, self.gamestate);
-           self.gamestate.red.nexus.draw(frame, self.gamestate);
 
-           self.gamestate
-               .red
-               .turrets()
-               .for_each(|turret| turret.draw(frame, self.gamestate));
-           self.gamestate
-               .blue
-               .turrets()
-               .for_each(|turret| turret.draw(frame, self.gamestate));
-
-           self.gamestate
-               .blue
-               .inhibs
-               .iter()
-               .for_each(|inhib| inhib.draw(frame, self.gamestate));
-           self.gamestate
-               .red
-               .inhibs
-               .iter()
-               .for_each(|inhib| inhib.draw(frame, self.gamestate));
-       }
-    */
     fn get_cards(&self, point: Point) -> Vec<Card> {
         /*
         let blue_nexus = self.gamestate.blue.nexus.describe(self.gamestate, point);
@@ -212,22 +189,41 @@ impl Program<Message> for Minimap<'_> {
         let mut frame = Frame::new(MAP_BOUNDS.size());
         frame.scale(bounds.width / MAP_BOUNDS.width);
 
-        for data in self.store.world.iter() {
-            let id = data.data;
-            let position_component = data.geom();
+        for data in self.store.nav.tree.iter() {
+            match data {
+                CollisionBox::Polygon(poly) => {
+                    let path = iced::widget::canvas::Path::new(|builder| {
+                        for line in poly.exterior().lines() {
+                            let start = line.start;
+                            let end = line.end;
 
-            let pos = position_component.point;
-            let radius = position_component.radius;
-            let team = if let Some(team) = id.team() {
-                utils::team_color(team)
-            } else {
-                iced::Color::from_rgb8(80, 80, 80)
-            };
+                            builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
+                            builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
+                        }
+                    });
 
-            frame.fill(
-                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
-                team,
-            );
+                    frame.stroke(
+                        &path,
+                        iced::widget::canvas::Stroke::default()
+                            .with_width(1.0)
+                            .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
+                    );
+                }
+                CollisionBox::Unit { position, guid } => {
+                    let pos = position.point;
+                    let radius = position.radius;
+                    let team = if let Some(team) = guid.team() {
+                        utils::team_color(team)
+                    } else {
+                        iced::Color::from_rgb8(80, 80, 80)
+                    };
+
+                    frame.fill(
+                        &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
+                        team,
+                    );
+                }
+            }
         }
 
         fn debug_tree<T: rstar::RTreeObject<Envelope = oobb::OOBB>>(
@@ -279,34 +275,13 @@ impl Program<Message> for Minimap<'_> {
                     rstar::RTreeNode::Parent(node) => debug_tree(
                         node,
                         frame,
-                        (r + 0.18).clamp(0.0, 1.0),
+                        (r + 0.15).clamp(0.0, 1.0),
                         (g as u8).saturating_mul(64),
                     ),
                 };
             }
         }
-        // debug_tree(self.store.world.root(), &mut frame, 0.2, 0);
-
-        for feature in &self.features.features {
-            let l = geo_types::LineString::<f64>::try_from(feature.clone()).unwrap();
-
-            let path = iced::widget::canvas::Path::new(|builder| {
-                for line in l.lines() {
-                    let start = line.start;
-                    let end = line.end;
-
-                    builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
-                    builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
-                }
-            });
-
-            frame.stroke(
-                &path,
-                iced::widget::canvas::Stroke::default()
-                    .with_width(1.0)
-                    .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
-            );
-        }
+        // debug_tree(self.store.nav.tree.root(), &mut frame, 0.0, 0);
 
         /*
                for minion in self.store.minions().map(|minion| minion.guid()) {
@@ -329,15 +304,18 @@ impl Program<Message> for Minimap<'_> {
 
             let goal = self
                 .store
-                .world
+                .nav
+                .tree
                 .nearest_neighbor_iter_with_distance_2(&minion_pos.to_array())
                 .take_while(|(_, distance)| *distance < (query_radius * query_radius))
-                .filter(|(id, _)| id.data.team() != team && id.data.is_turret())
+                .filter(|(collision, _)| match collision {
+                    CollisionBox::Polygon(_) => false,
+                    CollisionBox::Unit { guid, .. } => guid.team() != team && guid.is_turret(),
+                })
                 .next();
 
-            if let Some(id) = goal.map(|(g, _)| g.data) {
-                let entity = self.store.get_raw_by_id(id).unwrap();
-                let goal_pos = self.store.position[entity.position].1.point;
+            if let Some((CollisionBox::Unit { position, .. }, _)) = goal {
+                let goal_pos = position.point;
                 let goal_adj = (goal_pos.x.floor() as usize, goal_pos.y.floor() as usize);
                 let goal_pos_rel = (
                     goal_adj.0.saturating_sub(x0.0),

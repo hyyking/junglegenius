@@ -1,4 +1,4 @@
-use rstar::{primitives::GeomWithData, Envelope};
+use rstar::{primitives::GeomWithData, Envelope, RTreeObject};
 
 use crate::{
     core::Team,
@@ -9,7 +9,7 @@ use crate::{
         },
         store::EntityStore,
         UnitId,
-    },
+    }, nav_engine::CollisionBox,
 };
 
 mod builder;
@@ -84,14 +84,17 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
     }
 }
 
-struct UnitRemoval(lyon::math::Point, UnitId);
+pub(crate) struct UnitRemoval(pub(crate) PositionComponent, pub(crate) UnitId);
 
-impl rstar::SelectionFunction<GeomWithData<PositionComponent, UnitId>> for UnitRemoval {
+impl rstar::SelectionFunction<CollisionBox> for UnitRemoval {
     fn should_unpack_parent(&self, envelope: &oobb::OOBB) -> bool {
-        envelope.contains_point(&[self.0.x, self.0.y])
+        envelope.contains_point(&[self.0.point.x, self.0.point.y])
     }
-    fn should_unpack_leaf(&self, leaf: &GeomWithData<PositionComponent, UnitId>) -> bool {
-        leaf.data == self.1
+    fn should_unpack_leaf(&self, leaf: &CollisionBox) -> bool {
+        match leaf {
+            CollisionBox::Polygon(_) => false,
+            CollisionBox::Unit { guid, .. } => guid == &self.1,
+        }
     }
 }
 
@@ -108,8 +111,8 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         };
         let prev = std::mem::replace(self.position_component_mut(), to);
 
-        store.world.remove_with_selection_function(UnitRemoval(prev.point, self.guid()));
-        store.world.insert(GeomWithData::new(to, self.guid()));
+        store.nav.tree.remove_with_selection_function(UnitRemoval(prev, self.guid()));
+        store.nav.tree.insert(CollisionBox::Unit { position: to, guid: self.guid() });
     }
 
     fn pathfind_for_duration(
@@ -163,7 +166,7 @@ pub trait EntityMut<'store>: EntityRef<'store> {
     }
 
 
-    fn delete(self) -> Result<UnitId, ()>
+    fn delete(self) -> Result<UnitId, String>
     where
         Self: Sized,
     {

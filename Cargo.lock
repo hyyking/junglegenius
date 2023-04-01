@@ -50,8 +50,6 @@ version = "0.1.0"
 dependencies = [
  "either",
  "engine",
- "geo-types",
- "geojson",
  "iced",
  "iced_graphics",
  "iced_native",
@@ -59,7 +57,6 @@ dependencies = [
  "oobb",
  "pathfinding",
  "rstar",
- "svg2geojson",
 ]
 
 [[package]]
@@ -582,11 +579,14 @@ name = "engine"
 version = "0.1.0"
 dependencies = [
  "fastrand",
+ "geo",
+ "geojson",
  "lyon",
  "oobb",
  "pathfinding",
  "rstar",
  "slab",
+ "svg2geojson",
 ]
 
 [[package]]

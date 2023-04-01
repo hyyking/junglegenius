@@ -8,12 +8,15 @@ use crate::{
         generic::{pathfinding::PathfindingComponent, PositionComponent},
         UnitId,
     },
+    nav_engine::{CollisionBox, NavigationMap},
     structures::{
         inhibitor::{Inhibitor, InhibitorComponent},
         turret::{Turret, TurretComponent},
     },
     units::minion::{Minion, MinionComponent, MinionMut},
 };
+
+use super::entity::UnitRemoval;
 
 type PointId = rstar::primitives::GeomWithData<PositionComponent, UnitId>;
 type WithId<T> = (UnitId, T);
@@ -27,7 +30,7 @@ pub struct EntityStore {
     pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
 
-    pub world: rstar::RTree<PointId>,
+    pub nav: NavigationMap,
 }
 
 impl EntityStore {
@@ -55,7 +58,7 @@ impl EntityStore {
             specific,
             pathfinding: self.pathfinding.insert((guid, pathfinding)),
         };
-        self.world.insert(GeomWithData::new(position, guid));
+        self.nav.tree.insert(CollisionBox::Unit { position, guid });
         self.entities.insert(guid, components);
         guid
     }
@@ -114,24 +117,42 @@ impl EntityStore {
         self.entities.get_mut(&id)
     }
 
-    pub fn remove_by_id(&mut self, id: UnitId) -> Result<UnitId, ()> {
-        let entity = self.entities.remove(&id).ok_or(())?;
+    pub fn remove_by_id(&mut self, id: UnitId) -> Result<UnitId, String> {
+        let entity = self
+            .entities
+            .remove(&id)
+            .ok_or(format!("{}:{}", file!(), line!()))?;
 
-        let (id, pos) = self.position.try_remove(entity.position).ok_or(())?;
-        self.world.remove(&GeomWithData::new(pos, id)).ok_or(())?;
+        let (guid, position) =
+            self.position
+                .try_remove(entity.position)
+                .ok_or(format!("{}:{}", file!(), line!()))?;
 
-        self.pathfinding.try_remove(entity.pathfinding).ok_or(())?;
+        self.nav
+            .tree
+            .remove_with_selection_function(UnitRemoval(position, guid))
+            .ok_or(format!("{}:{}", file!(), line!()))?;
+
+        self.pathfinding
+            .try_remove(entity.pathfinding)
+            .ok_or(format!("{}:{}", file!(), line!()))?;
 
         match entity.specific {
             SpecificComponent::None => {}
             SpecificComponent::Turret(key) => {
-                self.turret.try_remove(key).ok_or(())?;
+                self.turret
+                    .try_remove(key)
+                    .ok_or(format!("{}:{}", file!(), line!()))?;
             }
             SpecificComponent::Inhibitor(key) => {
-                self.inhibitor.try_remove(key).ok_or(())?;
+                self.inhibitor
+                    .try_remove(key)
+                    .ok_or(format!("{}:{}", file!(), line!()))?;
             }
             SpecificComponent::Minion(key) => {
-                self.minions.try_remove(key).ok_or(())?;
+                self.minions
+                    .try_remove(key)
+                    .ok_or(format!("{}:{}", file!(), line!()))?;
             }
         }
 

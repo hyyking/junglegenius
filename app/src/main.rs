@@ -6,7 +6,6 @@ use engine::core::GameTimer;
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
 use engine::MinimapEngine;
-use geojson::{FeatureCollection, GeoJson};
 use iced::theme::Palette;
 use iced::widget::canvas;
 use iced::widget::{column, container, image, slider, text};
@@ -43,17 +42,12 @@ pub struct Slider {
 
     store: EntityStore,
     engine: MinimapEngine,
-    features: FeatureCollection,
 }
 
 impl Sandbox for Slider {
     type Message = Message;
 
     fn new() -> Slider {
-        let file = std::fs::File::open("map.json").unwrap();
-
-        let features = FeatureCollection::try_from(GeoJson::from_reader(&file).unwrap()).unwrap();
-
         let slider_value = 60;
 
         let mut builder = EntityStoreBuilder::new();
@@ -75,7 +69,6 @@ impl Sandbox for Slider {
             current_point: None,
             engine,
             store,
-            features,
         }
     }
 
@@ -164,7 +157,7 @@ impl Sandbox for Slider {
 
         let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
 
-        let overlay = canvas(minimap::Minimap::new(&self.store, &self.features));
+        let overlay = canvas(minimap::Minimap::new(&self.store));
 
         let widget = map_overlay::MapWidget::new(
             overlay,

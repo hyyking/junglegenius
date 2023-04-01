@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use geo::{LineString, Polygon};
+use geojson::FeatureCollection;
 use rstar::primitives::GeomWithData;
 
 use crate::{
@@ -9,6 +11,7 @@ use crate::{
         store::EntityStore,
         UnitId,
     },
+    nav_engine::{CollisionBox, NavigationMap},
     structures::{inhibitor::InhibitorComponent, turret::TurretComponent},
     units::minion::MinionComponent,
 };
@@ -24,6 +27,7 @@ pub struct EntityStoreBuilder {
     inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pathfinding: slab::Slab<WithId<PathfindingComponent>>,
     minions: slab::Slab<WithId<MinionComponent>>,
+    map: FeatureCollection,
     nopath_key: usize,
 }
 
@@ -38,6 +42,11 @@ impl EntityStoreBuilder {
             inhibitor: slab::Slab::with_capacity(64),
             minions: slab::Slab::with_capacity(8 * 3 * 2 * 3),
             pathfinding,
+            map: FeatureCollection {
+                bbox: None,
+                features: vec![],
+                foreign_members: None,
+            },
             nopath_key,
         }
     }
@@ -74,13 +83,26 @@ impl EntityStoreBuilder {
         guid
     }
 
+    pub fn load_map(&mut self, path: impl AsRef<std::path::Path>) {
+        let file = std::fs::File::open(path).unwrap();
+        self.map = FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
+    }
+
     pub fn build(self) -> EntityStore {
-        let world = rstar::RTree::bulk_load(
-            self.position
-                .iter()
-                .map(|(_, (id, data))| GeomWithData::new(data.clone(), id.clone()))
-                .collect(),
-        );
+        let nav = NavigationMap {
+            tree: rstar::RTree::bulk_load(
+                self.position
+                    .iter()
+                    .map(|(_, (guid, data))| CollisionBox::Unit {
+                        position: data.clone(),
+                        guid: guid.clone(),
+                    })
+                    .chain(self.map.features.into_iter().map(|f| {
+                        CollisionBox::Polygon(Polygon::new(LineString::try_from(f).unwrap(), vec![]))
+                    }))
+                    .collect(),
+            ),
+        };
         EntityStore {
             entities: self.entities,
             position: self.position,
@@ -88,7 +110,7 @@ impl EntityStoreBuilder {
             inhibitor: self.inhibitor,
             pathfinding: self.pathfinding,
             minions: self.minions, // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
-            world,
+            nav,
         }
     }
 }

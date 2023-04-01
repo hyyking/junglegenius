@@ -25,6 +25,13 @@ impl OOBB {
             polygon: geo::Rect::new(a, b).into(),
         }
     }
+
+    pub fn from_polygon(poly: Polygon<f32>) -> Self {
+        Self {
+            polygon: poly.minimum_rotated_rect().unwrap()
+        }
+    }
+
     pub fn lines(&self) -> impl Iterator<Item = geo::Line<f32>> + '_ {
         self.polygon.lines_iter()
     }
