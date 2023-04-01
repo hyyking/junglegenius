@@ -9,7 +9,7 @@ use engine::MinimapEngine;
 use iced::theme::Palette;
 use iced::widget::canvas;
 use iced::widget::{column, container, image, slider, text};
-use iced::{Element, Length, Point, Sandbox, Settings, Color};
+use iced::{Color, Element, Length, Point, Sandbox, Settings};
 
 mod information;
 mod map_overlay;

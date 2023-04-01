@@ -192,6 +192,7 @@ impl Program<Message> for Minimap<'_> {
         for data in self.store.nav.tree.iter() {
             match data {
                 CollisionBox::Polygon(poly) => {
+                    /* TODO: this is made for debuging the walls */
                     let path = iced::widget::canvas::Path::new(|builder| {
                         for line in poly.exterior().lines() {
                             let start = line.start;

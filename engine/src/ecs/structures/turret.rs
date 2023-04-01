@@ -3,7 +3,7 @@ use lyon::math::Point;
 use crate::{
     core::{Lane, Team},
     ecs::{
-        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
+        entity::{Entity, EntityBuilder, EntityRef, EntityRefCrateExt, SpecificComponentBuilder},
         generic::{pathfinding::PathfindingComponent, PositionComponent},
         store::EntityStore,
     },

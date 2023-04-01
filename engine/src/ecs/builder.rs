@@ -85,7 +85,8 @@ impl EntityStoreBuilder {
 
     pub fn load_map(&mut self, path: impl AsRef<std::path::Path>) {
         let file = std::fs::File::open(path).unwrap();
-        self.map = FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
+        self.map =
+            FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
     }
 
     pub fn build(self) -> EntityStore {
@@ -98,7 +99,10 @@ impl EntityStoreBuilder {
                         guid: guid.clone(),
                     })
                     .chain(self.map.features.into_iter().map(|f| {
-                        CollisionBox::Polygon(Polygon::new(LineString::try_from(f).unwrap(), vec![]))
+                        CollisionBox::Polygon(Polygon::new(
+                            LineString::try_from(f).unwrap(),
+                            vec![],
+                        ))
                     }))
                     .collect(),
             ),

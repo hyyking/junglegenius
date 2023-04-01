@@ -2,7 +2,10 @@ use crate::{
     core::{Lane, Team},
     ecs::{
         self,
-        entity::{Entity, EntityBuilder, EntityMut, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
+        entity::{
+            Entity, EntityBuilder, EntityMut, EntityRef, EntityRefCrateExt,
+            SpecificComponentBuilder,
+        },
         generic::{
             pathfinding::{PathfindingComponent, LANE_PATHS},
             PositionComponent,

@@ -1,4 +1,4 @@
-use rstar::{RTreeObject, Envelope};
+use rstar::{Envelope, RTreeObject};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PositionComponent {
@@ -12,7 +12,10 @@ impl rstar::RTreeObject for PositionComponent {
     fn envelope(&self) -> Self::Envelope {
         let [x, y] = self.point.to_array();
 
-        oobb::OOBB::from_corners([x - self.radius, y - self.radius], [x + self.radius, y + self.radius])
+        oobb::OOBB::from_corners(
+            [x - self.radius, y - self.radius],
+            [x + self.radius, y + self.radius],
+        )
     }
 }
 
@@ -30,7 +33,7 @@ impl rstar::PointDistance for PositionComponent {
 
     // This implementation is not required but more efficient since it
     // omits the calculation of a square root
-    fn contains_point(&self, point: &[f32; 2]) -> bool {        
+    fn contains_point(&self, point: &[f32; 2]) -> bool {
         let origin = self.point.to_array();
         let d_x = origin[0] - point[0];
         let d_y = origin[1] - point[1];

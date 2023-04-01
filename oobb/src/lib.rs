@@ -1,6 +1,6 @@
 use geo::{
-    Area, BoundingRect, Centroid, Contains, EuclideanDistance, EuclideanLength,
-    Intersects, LineString, LinesIter, MinimumRotatedRect, MultiPolygon, Polygon, Simplify,
+    Area, BoundingRect, Centroid, Contains, EuclideanDistance, EuclideanLength, Intersects,
+    LineString, LinesIter, MinimumRotatedRect, MultiPolygon, Polygon, Simplify,
 };
 use rstar::PointDistance;
 
@@ -28,7 +28,7 @@ impl OOBB {
 
     pub fn from_polygon(poly: Polygon<f32>) -> Self {
         Self {
-            polygon: poly.minimum_rotated_rect().unwrap()
+            polygon: poly.minimum_rotated_rect().unwrap(),
         }
     }
 

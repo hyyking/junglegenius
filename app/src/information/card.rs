@@ -8,9 +8,7 @@ use super::{list::List, DrawInformation};
 
 #[derive(Debug, Clone)]
 pub enum Card {
-    Text {
-        text: String,
-    },
+    Text { text: String },
 }
 
 impl DrawInformation for Card {
@@ -54,7 +52,7 @@ impl DrawInformation for Card {
                 }
                 .draw_consume(rectangle, frame)
             }
-            
+
             Card::Minion(minion, stats) => {
                 let name = List {
                     padding: (0.0, 0.0, 0.0, 0.0),

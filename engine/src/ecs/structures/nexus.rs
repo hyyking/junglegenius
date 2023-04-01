@@ -1,4 +1,11 @@
-use crate::{core::Team, ecs::{entity::{EntityBuilder, SpecificComponentBuilder}, UnitId, generic::{PositionComponent, pathfinding::PathfindingComponent}}};
+use crate::{
+    core::Team,
+    ecs::{
+        entity::{EntityBuilder, SpecificComponentBuilder},
+        generic::{pathfinding::PathfindingComponent, PositionComponent},
+        UnitId,
+    },
+};
 
 #[derive(Debug, Clone)]
 pub struct Nexus {

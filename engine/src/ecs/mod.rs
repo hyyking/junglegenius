@@ -1,7 +1,5 @@
 use crate::core::{Lane, Team};
 
-
-
 pub mod builder;
 pub mod entity;
 pub mod generic;
@@ -10,7 +8,6 @@ pub mod spawners;
 pub mod store;
 pub mod structures;
 pub mod units;
-
 
 // mod kind;
 
@@ -33,7 +30,6 @@ impl UnitId {
     const NEXUS_BOT_TURRET: u64 = 5;
     const INHIBITOR: u64 = 6;
     const NEXUS: u64 = 7;
-
 
     pub fn new(team: Option<Team>, lane: Option<Lane>) -> Self {
         // 0000     0000    0000    0000  16..32  0000 0000 0000 0000
@@ -99,7 +95,6 @@ impl UnitId {
     }
 }
 
-
 impl From<crate::ecs::structures::turret::TurretIndex> for UnitId {
     fn from(value: crate::ecs::structures::turret::TurretIndex) -> Self {
         let team = value.0;
@@ -112,14 +107,16 @@ impl From<crate::ecs::structures::turret::TurretIndex> for UnitId {
             crate::ecs::structures::turret::TurretKind::Outer => Self::OUTER_TURRET << offset,
             crate::ecs::structures::turret::TurretKind::Inner => Self::INNER_TURRET << offset,
             crate::ecs::structures::turret::TurretKind::Inhib => Self::INHIB_TURRET << offset,
-            crate::ecs::structures::turret::TurretKind::NexusBot => Self::NEXUS_BOT_TURRET << offset,
-            crate::ecs::structures::turret::TurretKind::NexusTop => Self::NEXUS_TOP_TURRET << offset,
+            crate::ecs::structures::turret::TurretKind::NexusBot => {
+                Self::NEXUS_BOT_TURRET << offset
+            }
+            crate::ecs::structures::turret::TurretKind::NexusTop => {
+                Self::NEXUS_TOP_TURRET << offset
+            }
         };
         Self(id)
     }
 }
-
-
 
 impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
     fn from(value: crate::ecs::structures::inhibitor::InhibitorIndex) -> Self {
@@ -132,7 +129,6 @@ impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
         Self(id)
     }
 }
-
 
 impl From<&crate::ecs::structures::nexus::Nexus> for UnitId {
     fn from(value: &crate::ecs::structures::nexus::Nexus) -> Self {

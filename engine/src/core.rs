@@ -10,7 +10,7 @@ use lyon::{
 };
 
 use crate::{
-    ecs::{Unit, entity::EntityBuilder},
+    ecs::entity::EntityBuilder,
     structures::{nexus::Nexus, turret::TurretIndex},
 };
 

@@ -34,7 +34,7 @@ pub fn build_path(svg: &str) -> Path {
     builder.build()
 }
 
-pub fn sample_path(path: &Path) -> LineStringType {
+pub fn sample_path(path: &Path, sample_interval: f32) -> LineStringType {
     let mut samples = vec![];
 
     let mut pattern = RegularPattern {
@@ -42,7 +42,7 @@ pub fn sample_path(path: &Path) -> LineStringType {
             samples.push(vec![event.position.x as f64, event.position.y as f64]);
             true
         },
-        interval: 256.0,
+        interval: sample_interval,
     };
     lyon_algorithms::walk::walk_along_path(path, 0.0, 0.0, &mut pattern);
     samples
@@ -60,6 +60,7 @@ pub enum Error {
 pub fn svg2geojson_filter_rgb(
     svg: &std::path::Path,
     output: impl Write,
+    sample_interval: f32,
     filter: impl Fn(parse::RGB) -> bool,
 ) -> Result<(), Error> {
     let mut buf = String::with_capacity(1024);
@@ -81,7 +82,7 @@ pub fn svg2geojson_filter_rgb(
                 let v = attrs.get("d").ok_or(Error::GetPath)?.deref();
 
                 let path = build_path(v);
-                let samples: LineStringType = sample_path(&path);
+                let samples: LineStringType = sample_path(&path, sample_interval);
 
                 objects.push(Feature {
                     id: Some(Id::String(format!("{i}"))),

@@ -9,7 +9,8 @@ use crate::{
         },
         store::EntityStore,
         UnitId,
-    }, nav_engine::CollisionBox,
+    },
+    nav_engine::CollisionBox,
 };
 
 mod builder;
@@ -98,7 +99,6 @@ impl rstar::SelectionFunction<CollisionBox> for UnitRemoval {
     }
 }
 
-
 pub trait EntityMut<'store>: EntityRef<'store> {
     fn store_mut(&self) -> &'store mut EntityStore;
 
@@ -111,8 +111,14 @@ pub trait EntityMut<'store>: EntityRef<'store> {
         };
         let prev = std::mem::replace(self.position_component_mut(), to);
 
-        store.nav.tree.remove_with_selection_function(UnitRemoval(prev, self.guid()));
-        store.nav.tree.insert(CollisionBox::Unit { position: to, guid: self.guid() });
+        store
+            .nav
+            .tree
+            .remove_with_selection_function(UnitRemoval(prev, self.guid()));
+        store.nav.tree.insert(CollisionBox::Unit {
+            position: to,
+            guid: self.guid(),
+        });
     }
 
     fn pathfind_for_duration(
@@ -164,7 +170,6 @@ pub trait EntityMut<'store>: EntityRef<'store> {
             }
         }
     }
-
 
     fn delete(self) -> Result<UnitId, String>
     where

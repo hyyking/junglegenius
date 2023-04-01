@@ -1,7 +1,7 @@
 use crate::{
     core::{GameTimer, Lane, Team},
     ecs::{
-        entity::{Entity, EntityBuilder, EntityRef, SpecificComponentBuilder, EntityRefCrateExt},
+        entity::{Entity, EntityBuilder, EntityRef, EntityRefCrateExt, SpecificComponentBuilder},
         generic::pathfinding::PathfindingComponent,
         store::EntityStore,
     },
