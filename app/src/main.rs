@@ -161,39 +161,39 @@ impl Sandbox for Slider {
 
         let widget = map_overlay::MapWidget::new(
             overlay,
-            iced::widget::svg(iced::widget::svg::Handle::from_path("map.svg"))
-                .content_fit(iced::ContentFit::Cover)
-                .width(Length::Fixed(512.0))
-                .height(Length::Fixed(512.0)),
+            iced::widget::svg(iced::widget::svg::Handle::from_path("map.svg")).width(Length::Fill).height(Length::Fill),
         );
 
         let informations = canvas(information::InformationCanvas { cards: &self.cards })
-            .width(Length::Fixed(256.0))
-            .height(Length::Fixed(512.0));
+            .width(Length::Fixed(256.0)).height(Length::Fill);
+            
 
         container(
             column![
-                iced::widget::row![
-                    container(widget)
-                        .align_x(iced_native::alignment::Horizontal::Right)
-                        .max_width(512.0),
-                    container(informations)
-                        .align_x(iced_native::alignment::Horizontal::Left)
-                        .max_width(384.0)
-                ]
-                .spacing(25),
-                container(h_slider)
-                    .width(Length::Fixed(512.0 + 25.0 + 256.0))
-                    .center_x(),
-                container(text).width(Length::Shrink).center_x(),
+                container(
+                    iced::widget::row![
+                        container(widget).align_x(iced_native::alignment::Horizontal::Right).width(Length::FillPortion(2)).height(Length::Fill),
+                        container(informations).align_x(iced_native::alignment::Horizontal::Left).width(Length::FillPortion(1)).height(Length::Fill)
+                    ].spacing(25)
+                )
+                .width(Length::Fill)
+                .height(Length::FillPortion(3)),
+                container(column![
+                    h_slider
+                        .width(Length::Fixed(512.0 + 25.0 + 256.0))
+                        .center_x(),
+                    text.width(Length::Shrink),
+                ])
+                .width(Length::Fill)
+                .height(Length::FillPortion(1))
+                .center_x()
             ]
             .align_items(iced::Alignment::Center)
             .spacing(25),
         )
-        .height(Length::Fill)
         .width(Length::Fill)
-        .align_x(iced_native::alignment::Horizontal::Center)
-        .align_y(iced_native::alignment::Vertical::Center)
+        .height(Length::Fill)
+        .center_y()
         .into()
     }
 
