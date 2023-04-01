@@ -13,6 +13,7 @@ where
     <R as Renderer>::Theme: StyleSheet,
 {
     overlay: Canvas<Message, Theme, P>,
+    handle: iced_native::svg::Handle,
     image: Svg<R>,
 }
 
@@ -22,8 +23,14 @@ where
     R: Renderer + iced_native::svg::Renderer,
     <R as Renderer>::Theme: StyleSheet,
 {
-    pub fn new(overlay: Canvas<Message, Theme, P>, image: Svg<R>) -> Self {
-        Self { overlay, image }
+    pub fn new(overlay: Canvas<Message, Theme, P>, handle: iced_native::svg::Handle) -> Self {
+        Self {
+            overlay,
+            image: iced::widget::svg(handle.clone())
+                .width(Length::Fill)
+                .height(Length::Fill),
+            handle,
+        }
     }
 }
 
@@ -36,24 +43,19 @@ where
     for<'a> CanvasOverlay<'a, R, Message, Theme, P>: Overlay<WMessage, R>,
 {
     fn width(&self) -> Length {
-        <iced_native::widget::svg::Svg<R> as iced_native::Widget<
-            Message,
-            R,
-        >>::height(&self.image)
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<Message, R>>::height(&self.image)
     }
 
     fn height(&self) -> Length {
-        <iced_native::widget::Svg<R> as iced_native::Widget<
-            Message,
-            R,
-        >>::height(&self.image)
+        <iced_native::widget::Svg<R> as iced_native::Widget<Message, R>>::height(&self.image)
     }
 
     fn layout(&self, renderer: &R, limits: &iced_native::layout::Limits) -> layout::Node {
-        <iced_native::widget::Svg<R> as iced_native::Widget<
-            Message,
-            R,
-        >>::layout(&self.image, renderer, &limits)
+        <iced_native::widget::Svg<R> as iced_native::Widget<Message, R>>::layout(
+            &self.image,
+            renderer,
+            &limits,
+        )
     }
 
     fn state(&self) -> iced_native::widget::tree::State {
@@ -94,6 +96,7 @@ where
                 state,
                 layout: layout.bounds(),
                 canvas: &mut self.overlay,
+                handle: &self.handle,
                 image: &self.image,
             }),
         ))
@@ -113,6 +116,7 @@ where
     state: &'a mut Tree,
     layout: Rectangle,
     canvas: &'a mut Canvas<Message, Theme, P>,
+    handle: &'a iced_native::svg::Handle,
     image: &'a Svg<R>,
 }
 
@@ -123,22 +127,35 @@ where
     P: iced::widget::canvas::Program<Message, Theme>,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn layout(&self, renderer: &R, _bounds: Size, _position: iced::Point) -> layout::Node {
-        let limits = Limits::new(
-            Size::ZERO,
-            Size::new(self.layout.width, self.layout.height),
+    fn layout(&self, renderer: &R, bounds: Size, position: iced::Point) -> layout::Node {
+        let layout = <iced::widget::Svg<R> as iced_native::Widget<Message, R>>::layout(
+            &self.image,
+            renderer,
+            &Limits::new(Size::ZERO, self.layout.size()),
         );
-        
-        let mut layout =
-            <iced_native::widget::Svg<R> as iced_native::Widget<
-                Message,
-                R,
-            >>::layout(self.image, renderer, &limits);
-        
-        layout.move_to(self.layout.position());
-        layout
 
-        
+        let mut bounds = layout.bounds();
+
+        let Size { width, height } = renderer.dimensions(&self.handle);
+        let image_size = Size::new(width as f32, height as f32);
+        let adjusted_fit = iced::ContentFit::Contain.fit(image_size, bounds.size());
+
+        if adjusted_fit.width < bounds.width || adjusted_fit.height < bounds.height {
+            let offset = iced::Vector::new(
+                (bounds.width - adjusted_fit.width).max(0.0) / 2.0,
+                (bounds.height - adjusted_fit.height).max(0.0) / 2.0,
+            );
+
+            bounds = iced::Rectangle {
+                width: adjusted_fit.width,
+                height: adjusted_fit.height,
+                ..bounds
+            } + offset;
+        }
+
+        let mut node = Node::new(bounds.size());
+        node.move_to(bounds.position());
+        node
     }
 
     fn draw(

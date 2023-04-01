@@ -157,27 +157,32 @@ impl Sandbox for Slider {
 
         let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
 
-        let overlay = canvas(minimap::Minimap::new(&self.store));
-
         let widget = map_overlay::MapWidget::new(
-            overlay,
-            iced::widget::svg(iced::widget::svg::Handle::from_path("map.svg")).width(Length::Fill).height(Length::Fill),
+            canvas(minimap::Minimap::new(&self.store)),
+            iced::widget::svg::Handle::from_path("map.svg"),
         );
 
         let informations = canvas(information::InformationCanvas { cards: &self.cards })
-            .width(Length::Fixed(256.0)).height(Length::Fill);
-            
+            .width(Length::Fixed(256.0))
+            .height(Length::Fill);
 
         container(
             column![
                 container(
                     iced::widget::row![
-                        container(widget).align_x(iced_native::alignment::Horizontal::Right).width(Length::FillPortion(2)).height(Length::Fill),
-                        container(informations).align_x(iced_native::alignment::Horizontal::Left).width(Length::FillPortion(1)).height(Length::Fill)
-                    ].spacing(25)
+                        container(widget)
+                            .align_x(iced_native::alignment::Horizontal::Right)
+                            .width(Length::FillPortion(2))
+                            .height(Length::Fill),
+                        container(informations)
+                            .align_x(iced_native::alignment::Horizontal::Left)
+                            .width(Length::FillPortion(1))
+                            .height(Length::Fill)
+                    ]
+                    .spacing(25)
                 )
                 .width(Length::Fill)
-                .height(Length::FillPortion(3)),
+                .height(Length::FillPortion(4)),
                 container(column![
                     h_slider
                         .width(Length::Fixed(512.0 + 25.0 + 256.0))
