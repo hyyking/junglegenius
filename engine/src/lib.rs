@@ -1,6 +1,6 @@
 #![feature(let_chains)]
 #![feature(stmt_expr_attributes)]
-#![feature(once_cell)]
+#![feature(lazy_cell)]
 
 pub mod ecs;
 
