@@ -8,7 +8,7 @@ use engine::ecs::store::EntityStore;
 use engine::MinimapEngine;
 use iced::theme::Palette;
 use iced::widget::canvas;
-use iced::widget::{column, container, image, slider, text};
+use iced::widget::{column, container, slider, text};
 use iced::{Color, Element, Length, Point, Sandbox, Settings};
 
 mod information;
@@ -161,7 +161,7 @@ impl Sandbox for Slider {
 
         let widget = map_overlay::MapWidget::new(
             overlay,
-            image(r"C:\Users\Léo\Desktop\wave\map.png")
+            iced::widget::svg(iced::widget::svg::Handle::from_path("map.svg"))
                 .content_fit(iced::ContentFit::Cover)
                 .width(Length::Fixed(512.0))
                 .height(Length::Fixed(512.0)),

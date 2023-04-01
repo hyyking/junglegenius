@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced = {version = "0.8", features=["canvas", "image"]}
+iced = {version = "0.8", features=["canvas", "svg"]}
 iced_native = { version = "0.9" }
 iced_graphics = { version = "0.7" }
 engine = { path = "../engine" }

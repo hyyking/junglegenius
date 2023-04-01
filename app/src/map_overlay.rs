@@ -1,50 +1,56 @@
-use iced::widget::{Canvas, Image};
+use iced::widget::svg::StyleSheet;
+use iced::widget::{Canvas, Svg};
 use iced::{Length, Rectangle, Size};
 use iced_native::layout::Limits;
 use iced_native::renderer::Renderer;
 use iced_native::widget::{Tree, Widget};
 use iced_native::{layout, Overlay};
 
-pub struct MapWidget<Message, Theme, P>
+pub struct MapWidget<R, Message, Theme, P>
 where
     P: iced::widget::canvas::Program<Message, Theme>,
+    R: Renderer + iced_native::svg::Renderer,
+    <R as Renderer>::Theme: StyleSheet,
 {
     overlay: Canvas<Message, Theme, P>,
-    image: Image,
+    image: Svg<R>,
 }
 
-impl<Message, Theme, P> MapWidget<Message, Theme, P>
+impl<R, Message, Theme, P> MapWidget<R, Message, Theme, P>
 where
     P: iced::widget::canvas::Program<Message, Theme>,
+    R: Renderer + iced_native::svg::Renderer,
+    <R as Renderer>::Theme: StyleSheet,
 {
-    pub fn new(overlay: Canvas<Message, Theme, P>, image: Image) -> Self {
+    pub fn new(overlay: Canvas<Message, Theme, P>, image: Svg<R>) -> Self {
         Self { overlay, image }
     }
 }
 
-impl<WMessage, R, Message, Theme, P> Widget<WMessage, R> for MapWidget<Message, Theme, P>
+impl<WMessage, R, Message, Theme, P> Widget<WMessage, R> for MapWidget<R, Message, Theme, P>
 where
-    R: Renderer + iced_native::image::Renderer<Handle = iced::widget::image::Handle>,
+    R: Renderer + iced_native::svg::Renderer,
+    <R as Renderer>::Theme: StyleSheet,
     P: iced::widget::canvas::Program<Message, Theme>,
     Canvas<Message, Theme, P>: iced_native::Widget<WMessage, R>,
-    for<'a> CanvasOverlay<'a, Message, Theme, P>: Overlay<WMessage, R>,
+    for<'a> CanvasOverlay<'a, R, Message, Theme, P>: Overlay<WMessage, R>,
 {
     fn width(&self) -> Length {
-        <iced_native::widget::Image<iced_native::image::Handle> as iced_native::Widget<
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<
             Message,
             R,
         >>::height(&self.image)
     }
 
     fn height(&self) -> Length {
-        <iced_native::widget::Image<iced_native::image::Handle> as iced_native::Widget<
+        <iced_native::widget::Svg<R> as iced_native::Widget<
             Message,
             R,
         >>::height(&self.image)
     }
 
     fn layout(&self, renderer: &R, limits: &iced_native::layout::Limits) -> layout::Node {
-        <iced_native::widget::Image<iced_native::image::Handle> as iced_native::Widget<
+        <iced_native::widget::Svg<R> as iced_native::Widget<
             Message,
             R,
         >>::layout(&self.image, renderer, &limits)
@@ -64,7 +70,7 @@ where
         cursor_position: iced::Point,
         viewport: &iced::Rectangle,
     ) {
-        <Image as iced_native::Widget<Message, R>>::draw(
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<Message, R>>::draw(
             &self.image,
             state,
             renderer,
@@ -98,19 +104,22 @@ where
     }
 }
 
-pub struct CanvasOverlay<'a, Message, Theme, P>
+pub struct CanvasOverlay<'a, R, Message, Theme, P>
 where
     P: iced::widget::canvas::Program<Message, Theme>,
+    R: Renderer + iced_native::svg::Renderer,
+    <R as Renderer>::Theme: StyleSheet,
 {
     state: &'a mut Tree,
     layout: Rectangle,
     canvas: &'a mut Canvas<Message, Theme, P>,
-    image: &'a Image,
+    image: &'a Svg<R>,
 }
 
-impl<'a, Message, R, Theme, P> Overlay<Message, R> for CanvasOverlay<'a, Message, Theme, P>
+impl<'a, Message, R, Theme, P> Overlay<Message, R> for CanvasOverlay<'a, R, Message, Theme, P>
 where
-    R: Renderer + iced_native::image::Renderer<Handle = iced::widget::image::Handle>,
+    R: Renderer + iced_native::svg::Renderer,
+    <R as Renderer>::Theme: StyleSheet,
     P: iced::widget::canvas::Program<Message, Theme>,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
@@ -120,7 +129,7 @@ where
             Size::new(bounds.height - position.x, bounds.width - position.y),
         );
         let mut layout =
-            <iced_native::widget::Image<iced_native::image::Handle> as iced_native::Widget<
+            <iced_native::widget::Svg<R> as iced_native::Widget<
                 Message,
                 R,
             >>::layout(self.image, renderer, &limits);
@@ -184,14 +193,15 @@ where
     }
 }
 
-impl<'a, R, Message: 'a, Theme: 'a, P> From<MapWidget<Message, Theme, P>>
+impl<'a, R, Message: 'a, Theme: 'a, P> From<MapWidget<R, Message, Theme, P>>
     for iced_native::Element<'a, Message, R>
 where
-    R: Renderer + iced_native::image::Renderer<Handle = iced::widget::image::Handle>,
+    R: Renderer + iced_native::svg::Renderer + 'a,
+    <R as Renderer>::Theme: StyleSheet,
     P: iced::widget::canvas::Program<Message, Theme> + 'a,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn from(circle: MapWidget<Message, Theme, P>) -> Self {
+    fn from(circle: MapWidget<R, Message, Theme, P>) -> Self {
         Self::new(circle)
     }
 }
