@@ -16,26 +16,25 @@ const PANE_ID_COLOR_FOCUSED: Color = Color::from_rgb(1.0, 1.0, 1.0);
 
 pub struct AppGrid {
     panes: pane_grid::State<Pane>,
-    panes_created: usize,
+    minimap: pane_grid::Pane,
     focus: Option<pane_grid::Pane>,
 }
 
 impl AppGrid {
     pub fn new() -> Self {
-        let (panes, _) = pane_grid::State::new(Pane::minimap(0));
+        let (panes, minimap) = pane_grid::State::new(Pane::minimap());
         Self {
             panes,
-            panes_created: 1,
+            minimap,
             focus: None,
         }
     }
 
     pub fn update(&mut self, message: LayoutMessage) -> Command<Message> {
         match message {
-            LayoutMessage::Split(axis, pane) => {
-                let result = self
-                    .panes
-                    .split(axis, &pane, Pane::selection(self.panes_created));
+            LayoutMessage::Split(axis) => {
+                let pane = self.focus.as_ref().unwrap_or(&self.minimap);
+                let result = self.panes.split(axis, pane, Pane::selection());
 
                 if matches!(
                     self.panes.get(&pane),
@@ -49,20 +48,25 @@ impl AppGrid {
                     }
                     // self.focus = Some(pane);
                 }
-
-                self.panes_created += 1;
             }
+
+            LayoutMessage::Close(pane) => {
+                if let Some((_, sibling)) = self.panes.close(&pane) {
+                    /*
+                        self.focus = Some(sibling);
+                    */
+                }
+            }
+
+            LayoutMessage::Maximize(pane) => self.panes.maximize(&pane),
+            
             LayoutMessage::SplitFocused(axis) => {
                 if let Some(pane) = self.focus {
-                    let result = self
-                        .panes
-                        .split(axis, &pane, Pane::selection(self.panes_created));
+                    let result = self.panes.split(axis, &pane, Pane::selection());
 
                     if let Some((pane, _)) = result {
                         self.focus = Some(pane);
                     }
-
-                    self.panes_created += 1;
                 }
             }
             LayoutMessage::FocusAdjacent(direction) => {
@@ -91,28 +95,22 @@ impl AppGrid {
             }
             LayoutMessage::Dragged(_) => {}
             LayoutMessage::TogglePin(pane) => {
-                if let Some(Pane { is_pinned, .. }) = self.panes.get_mut(&pane) {
-                    *is_pinned = !*is_pinned;
+                if let Some(pane) = self.panes.get_mut(&pane) {
+                    pane.toggle_pinned();
                 }
             }
-            LayoutMessage::Maximize(pane) => self.panes.maximize(&pane),
+           
             LayoutMessage::Restore => {
                 self.panes.restore();
             }
-            LayoutMessage::Close(pane) => {
-                if let Some((_, sibling)) = self.panes.close(&pane) {
-                    /*
-                        self.focus = Some(sibling);
-                    */
-                }
-            }
+
             LayoutMessage::CloseFocused => {
                 if let Some(pane) = self.focus {
-                    if let Some(Pane { is_pinned, .. }) = self.panes.get(&pane) {
-                        if !is_pinned {
-                            if let Some((_, sibling)) = self.panes.close(&pane) {
-                                self.focus = Some(sibling);
-                            }
+                    if !self.panes.get(&pane).map(Pane::is_pinned).unwrap_or(false) {
+                        if let Some((_, sibling)) = self.panes.close(&pane) {
+                            /*
+                            self.focus = Some(sibling);
+                            */
                         }
                     }
                 }
@@ -121,58 +119,107 @@ impl AppGrid {
         Command::none()
     }
 
-    pub fn panegrid(&self) -> iced::widget::PaneGrid<'_, Message> {
+    pub fn panegrid<'a>(
+        &'a self,
+        store: &'a engine::ecs::store::EntityStore,
+    ) -> iced::widget::PaneGrid<'a, Message> {
         let focus = self.focus;
         let total_panes = self.panes.len();
 
-        PaneGrid::new(&self.panes, |id, pane, is_maximized| {
-            let is_focused = focus == Some(id);
+        PaneGrid::new(
+            &self.panes,
+            |id: pane_grid::Pane, pane: &pane::Pane, is_maximized: bool| {
+                let is_focused = focus == Some(id);
 
-            let pin_button = button(text(if pane.is_pinned { "Unpin" } else { "Pin" }).size(14))
-                .on_press(Message::from(LayoutMessage::TogglePin(id)))
-                .padding(3);
+                let title_bar = match pane.kind {
+                    PaneType::Minimap => pane_grid::TitleBar::new(
+                        text(format!("{:?}", pane.kind)).style(Color::BLACK),
+                    )
+                    .controls(view_controls(
+                        id,
+                        total_panes,
+                        matches!(pane.kind, PaneType::Minimap),
+                        false,
+                        is_maximized,
+                    ))
+                    .always_show_controls()
+                    .padding(2)
+                    .style(style::minimap_bar as fn(&iced::Theme) -> container::Appearance),
 
-            let title = row![
-                pin_button,
-                text(format!("{:?}", pane.kind)).style(if is_focused {
-                    PANE_ID_COLOR_FOCUSED
+                    PaneType::EngineSelection => {
+                        let pin_button =
+                            button(text(if pane.is_pinned() { "Unpin" } else { "Pin" }).size(20))
+                                .on_press(Message::from(LayoutMessage::TogglePin(id)))
+                                .padding(3);
+
+                        let title = row![
+                            pin_button,
+                            text(format!("{:?}", pane.kind)).style(if is_focused {
+                                PANE_ID_COLOR_FOCUSED
+                            } else {
+                                PANE_ID_COLOR_UNFOCUSED
+                            }),
+                        ]
+                        .spacing(5);
+
+                        pane_grid::TitleBar::new(title)
+                            .controls(view_controls(
+                                id,
+                                total_panes,
+                                matches!(pane.kind, PaneType::Minimap),
+                                pane.is_pinned(),
+                                is_maximized,
+                            ))
+                            .always_show_controls()
+                            .padding(10)
+                            .style(if is_focused {
+                                style::title_bar_focused
+                            } else {
+                                style::title_bar_active
+                            })
+                    }
+                };
+
+                let content = match pane.kind {
+                    PaneType::Minimap => {
+                        pane_grid::Content::new(
+                            crate::map_overlay::MapWidget::new(
+                                iced::widget::svg::Handle::from_path("map.svg"),
+                                crate::minimap::Minimap::new(store),
+                            )
+                        )
+                            
+                    }
+                    PaneType::EngineSelection => {
+                        pane_grid::Content::new(
+                            text("implement various engine queries and aggregations, would be cool to have a dropdown in the menu")
+                        )
+                    }
+                };
+
+                content.title_bar(title_bar).style(if is_focused {
+                    style::pane_focused
                 } else {
-                    PANE_ID_COLOR_UNFOCUSED
-                }),
-            ]
-            .spacing(5);
-
-            let title_bar = pane_grid::TitleBar::new(title)
-                .controls(view_controls(
-                    id,
-                    total_panes,
-                    matches!(pane.kind, PaneType::Minimap),
-                    pane.is_pinned,
-                    is_maximized,
-                ))
-                .padding(10)
+                    style::pane_active
+                })
+/*
+                pane_grid::Content::new(responsive(move |size| {
+                    view_content(id, total_panes, pane.is_pinned(), size)
+                }))
+                .title_bar(title_bar)
                 .style(if is_focused {
-                    style::title_bar_focused
+                    style::pane_focused
                 } else {
-                    style::title_bar_active
-                });
-
-            pane_grid::Content::new(responsive(move |size| {
-                view_content(id, total_panes, pane.is_pinned, size)
-            }))
-            .title_bar(title_bar)
-            .style(if is_focused {
-                style::pane_focused
-            } else {
-                style::pane_active
-            })
-        })
+                    style::pane_active
+                })*/
+            },
+        )
         .on_click(|a| Message::from(LayoutMessage::Clicked(a)))
         .on_drag(|a| Message::from(LayoutMessage::Dragged(a)))
         .on_resize(10, |a| Message::from(LayoutMessage::Resized(a)))
     }
 }
-
+/*
 fn view_content<'a>(
     pane: pane_grid::Pane,
     total_panes: usize,
@@ -226,6 +273,7 @@ fn view_content<'a>(
         .center_y()
         .into()
 }
+*/
 
 fn view_controls<'a>(
     pane: pane_grid::Pane,
@@ -266,6 +314,16 @@ fn view_controls<'a>(
 mod style {
     use iced::widget::container;
     use iced::Theme;
+
+    pub fn minimap_bar(theme: &Theme) -> container::Appearance {
+        let palette = theme.extended_palette();
+
+        container::Appearance {
+            text_color: Some(palette.background.strong.text),
+            background: Some(palette.background.strong.color.into()),
+            ..Default::default()
+        }
+    }
 
     pub fn title_bar_active(theme: &Theme) -> container::Appearance {
         let palette = theme.extended_palette();

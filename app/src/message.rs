@@ -16,15 +16,15 @@ impl From<LayoutMessage> for Message {
 
 #[derive(Debug, Clone, Copy)]
 pub enum LayoutMessage {
-    Split(pane_grid::Axis, pane_grid::Pane),
-    SplitFocused(pane_grid::Axis),
-    FocusAdjacent(pane_grid::Direction),
-    Clicked(pane_grid::Pane),
-    Dragged(pane_grid::DragEvent),
-    Resized(pane_grid::ResizeEvent),
-    TogglePin(pane_grid::Pane),
+    Split(pane_grid::Axis),
+    Close(pane_grid::Pane),
     Maximize(pane_grid::Pane),
     Restore,
-    Close(pane_grid::Pane),
+    Resized(pane_grid::ResizeEvent),
+    TogglePin(pane_grid::Pane),
+    Clicked(pane_grid::Pane),
+    Dragged(pane_grid::DragEvent),
+    SplitFocused(pane_grid::Axis),
+    FocusAdjacent(pane_grid::Direction),
     CloseFocused,
 }

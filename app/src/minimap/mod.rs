@@ -14,7 +14,7 @@ use engine::{
     nav_engine::CollisionBox,
 };
 
-use crate::{information::Card, utils, Message};
+use crate::{information::Card, utils, LayoutMessage, Message};
 
 // use crate::wave::WaveSpawnerState;
 // pub mod geometry;
@@ -137,11 +137,13 @@ impl Program<Message> for Minimap<'_> {
 
                         return (
                             iced::widget::canvas::event::Status::Captured,
-                            Some(if cards.is_empty() {
-                                Message::UnselectCards
-                            } else {
-                                Message::SelectCards(point, cards)
-                            }),
+                            None, /*
+                                  Some(if cards.is_empty() {
+                                      Message::UnselectCards
+                                  } else {
+                                      Message::SelectCards(point, cards)
+                                  }),
+                                  */
                         );
                     }
                     Event::ButtonReleased(Button::Left) => match std::mem::replace(state, None) {
@@ -156,7 +158,14 @@ impl Program<Message> for Minimap<'_> {
                                 )),
                             )
                         } */
-                        _ => return (iced::widget::canvas::event::Status::Ignored, None),
+                        _ => {
+                            return (
+                                iced::widget::canvas::event::Status::Ignored,
+                                Some(Message::Layout(LayoutMessage::Split(
+                                    iced_native::widget::pane_grid::Axis::Vertical,
+                                ))),
+                            )
+                        }
                     },
                     Event::CursorMoved { .. } => match state {
                         /*

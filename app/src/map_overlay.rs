@@ -23,9 +23,9 @@ where
     R: Renderer + iced_native::svg::Renderer,
     <R as Renderer>::Theme: StyleSheet,
 {
-    pub fn new(overlay: Canvas<Message, Theme, P>, handle: iced_native::svg::Handle) -> Self {
+    pub fn new(handle: iced_native::svg::Handle, program: P) -> Self {
         Self {
-            overlay,
+            overlay: iced::widget::canvas(program),
             image: iced::widget::svg(handle.clone())
                 .width(Length::Fill)
                 .height(Length::Fill),
@@ -91,7 +91,7 @@ where
         _renderer: &R,
     ) -> Option<iced_native::overlay::Element<'a, WMessage, R>> {
         Some(iced_native::overlay::Element::new(
-            iced_native::Point::ORIGIN,
+            layout.position(),
             Box::new(CanvasOverlay {
                 state,
                 layout: layout.bounds(),
@@ -154,7 +154,7 @@ where
         }
 
         let mut node = Node::new(bounds.size());
-        node.move_to(bounds.position());
+        node.move_to(position + iced::Vector::new(bounds.position().x, bounds.position().y));
         node
     }
 
@@ -221,7 +221,7 @@ where
     P: iced::widget::canvas::Program<Message, Theme> + 'a,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn from(circle: MapWidget<R, Message, Theme, P>) -> Self {
-        Self::new(circle)
+    fn from(widget: MapWidget<R, Message, Theme, P>) -> Self {
+        Self::new(widget)
     }
 }

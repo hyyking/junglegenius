@@ -1,7 +1,11 @@
 pub struct Pane {
     pub kind: PaneType,
-    pub id: usize,
-    pub is_pinned: bool,
+    attrs: PaneAttributes,
+}
+
+pub struct PaneAttributes {
+    pinned: bool,
+    closable: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -11,19 +15,31 @@ pub enum PaneType {
 }
 
 impl Pane {
-    pub fn minimap(id: usize) -> Self {
+    pub fn minimap() -> Self {
         Self {
             kind: PaneType::Minimap,
-            id,
-            is_pinned: false,
+            attrs: PaneAttributes {
+                pinned: false,
+                closable: false,
+            },
         }
     }
 
-    pub fn selection(id: usize) -> Self {
+    pub fn selection() -> Self {
         Self {
             kind: PaneType::EngineSelection,
-            id,
-            is_pinned: false,
+            attrs: PaneAttributes {
+                pinned: false,
+                closable: true,
+            },
         }
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.attrs.pinned
+    }
+
+    pub fn toggle_pinned(&mut self) {
+        self.attrs.pinned = !self.attrs.pinned;
     }
 }

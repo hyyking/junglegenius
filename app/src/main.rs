@@ -21,12 +21,21 @@ use grid::{
 };
 use message::{LayoutMessage, Message};
 
+use engine::core::GameTimer;
+use engine::ecs::builder::EntityStoreBuilder;
+use engine::ecs::store::EntityStore;
+use engine::MinimapEngine;
+use std::time::Duration;
+
 pub fn main() -> iced::Result {
     JungleGenius::run(Settings::default())
 }
 
 struct JungleGenius {
     appgrid: AppGrid,
+
+    store: EntityStore,
+    engine: MinimapEngine,
 }
 
 impl Application for JungleGenius {
@@ -36,9 +45,19 @@ impl Application for JungleGenius {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
+        let mut builder = EntityStoreBuilder::new();
+        let mut engine = MinimapEngine {
+            timer: GameTimer::GAME_START,
+        };
+        engine::Engine::on_start(&mut engine, &mut builder);
+        let mut store = builder.build();
+        engine::Engine::on_step(&mut engine, &mut store, GameTimer(Duration::from_secs(60)));
+
         (
             Self {
                 appgrid: AppGrid::new(),
+                store,
+                engine,
             },
             iced::Command::batch([
                 iced::window::maximize(true),
@@ -56,7 +75,15 @@ impl Application for JungleGenius {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Layout(layout) => self.appgrid.update(layout),
-            _ => unimplemented!(),
+            Message::StepRight => {
+                engine::Engine::on_step(
+                    &mut self.engine,
+                    &mut self.store,
+                    GameTimer(Duration::from_secs(1)),
+                );
+                Command::none()
+            }
+            a => unimplemented!("{:?}", a),
         }
     }
 
@@ -79,7 +106,7 @@ impl Application for JungleGenius {
     fn view(&self) -> Element<Message> {
         let pane_grid = self
             .appgrid
-            .panegrid()
+            .panegrid(&self.store)
             .width(Length::Fill)
             .height(Length::Fill)
             .spacing(10);
