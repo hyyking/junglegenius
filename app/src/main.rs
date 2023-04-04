@@ -5,7 +5,6 @@ use iced::theme::{self, Theme};
 use iced::widget::pane_grid::{self, PaneGrid};
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Application, Color, Command, Element, Length, Settings, Size, Subscription};
-use iced_lazy::responsive;
 use iced_native::{event, subscription, Event};
 
 mod grid;
@@ -109,7 +108,7 @@ impl Application for JungleGenius {
             .panegrid(&self.store)
             .width(Length::Fill)
             .height(Length::Fill)
-            .spacing(10);
+            .spacing(5);
 
         let player = row![
             button(text(">")),
@@ -117,20 +116,32 @@ impl Application for JungleGenius {
         ]
         .height(Length::Fill)
         .width(Length::Fill)
+        .align_items(Alignment::Center)
         .spacing(10);
 
         column![
             container(pane_grid)
                 .width(Length::Fill)
-                .height(Length::FillPortion(14))
+                .height(Length::FillPortion(15))
                 .padding(10),
             iced::widget::horizontal_rule(2),
             container(player)
                 .height(Length::FillPortion(1))
                 .width(Length::Fill)
-                .padding(10),
+                .padding(10)
         ]
         .into()
+    }
+
+    fn theme(&self) -> iced::Theme {
+        let a = iced::theme::Custom::new(iced::theme::Palette {
+            background: Color::from_rgb8(85, 85, 85),
+            text: Color::WHITE,
+            primary: Color::WHITE,
+            success: Color::from_rgb8(0, 255, 0),
+            danger: Color::from_rgb8(255, 0, 0),
+        });
+        iced::Theme::Custom(Box::new(a))
     }
 }
 

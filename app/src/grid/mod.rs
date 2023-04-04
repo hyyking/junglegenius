@@ -9,7 +9,6 @@ use iced::{
     widget::{button, column, container, pane_grid, row, scrollable, text, PaneGrid},
     Alignment, Color, Command, Element, Length, Size,
 };
-use iced_lazy::responsive;
 
 const PANE_ID_COLOR_UNFOCUSED: Color = Color::from_rgb(0.0, 0.0, 0.0);
 const PANE_ID_COLOR_FOCUSED: Color = Color::from_rgb(1.0, 1.0, 1.0);
@@ -33,16 +32,10 @@ impl AppGrid {
     pub fn update(&mut self, message: LayoutMessage) -> Command<Message> {
         match message {
             LayoutMessage::Split(axis) => {
-                let pane = self.focus.as_ref().unwrap_or(&self.minimap);
-                let result = self.panes.split(axis, pane, Pane::selection());
+                let pane = self.focus.unwrap_or(self.minimap);
+                let result = self.panes.split(axis, &pane, Pane::selection());
 
-                if matches!(
-                    self.panes.get(&pane),
-                    Some(Pane {
-                        kind: PaneType::Minimap,
-                        ..
-                    })
-                ) {
+                if pane == self.minimap {
                     if let Some((_, split)) = result {
                         self.panes.resize(&split, 0.6);
                     }
@@ -59,7 +52,7 @@ impl AppGrid {
             }
 
             LayoutMessage::Maximize(pane) => self.panes.maximize(&pane),
-            
+
             LayoutMessage::SplitFocused(axis) => {
                 if let Some(pane) = self.focus {
                     let result = self.panes.split(axis, &pane, Pane::selection());
@@ -77,13 +70,7 @@ impl AppGrid {
                 }
             }
             LayoutMessage::Clicked(pane) => {
-                if !matches!(
-                    self.panes.get(&pane),
-                    Some(Pane {
-                        kind: PaneType::Minimap,
-                        ..
-                    })
-                ) {
+                if !(pane == self.minimap) {
                     self.focus = Some(pane);
                 }
             }
@@ -99,7 +86,7 @@ impl AppGrid {
                     pane.toggle_pinned();
                 }
             }
-           
+
             LayoutMessage::Restore => {
                 self.panes.restore();
             }
@@ -148,7 +135,7 @@ impl AppGrid {
 
                     PaneType::EngineSelection => {
                         let pin_button =
-                            button(text(if pane.is_pinned() { "Unpin" } else { "Pin" }).size(20))
+                            button(text(if pane.is_pinned() { "Unpin" } else { "Pin" }).size(14))
                                 .on_press(Message::from(LayoutMessage::TogglePin(id)))
                                 .padding(3);
 
@@ -183,12 +170,11 @@ impl AppGrid {
                 let content = match pane.kind {
                     PaneType::Minimap => {
                         pane_grid::Content::new(
-                            crate::map_overlay::MapWidget::new(
+                            container(crate::map_overlay::MapWidget::new(
                                 iced::widget::svg::Handle::from_path("map.svg"),
                                 crate::minimap::Minimap::new(store),
-                            )
+                            )).center_x().center_y().height(Length::Fill).width(Length::Fill).padding(10)
                         )
-                            
                     }
                     PaneType::EngineSelection => {
                         pane_grid::Content::new(
@@ -202,16 +188,6 @@ impl AppGrid {
                 } else {
                     style::pane_active
                 })
-/*
-                pane_grid::Content::new(responsive(move |size| {
-                    view_content(id, total_panes, pane.is_pinned(), size)
-                }))
-                .title_bar(title_bar)
-                .style(if is_focused {
-                    style::pane_focused
-                } else {
-                    style::pane_active
-                })*/
             },
         )
         .on_click(|a| Message::from(LayoutMessage::Clicked(a)))
@@ -219,61 +195,6 @@ impl AppGrid {
         .on_resize(10, |a| Message::from(LayoutMessage::Resized(a)))
     }
 }
-/*
-fn view_content<'a>(
-    pane: pane_grid::Pane,
-    total_panes: usize,
-    is_pinned: bool,
-    size: Size,
-) -> Element<'a, Message> {
-    let button = |label, message| {
-        button(
-            text(label)
-                .width(Length::Fill)
-                .horizontal_alignment(alignment::Horizontal::Center)
-                .size(16),
-        )
-        .width(Length::Fill)
-        .padding(8)
-        .on_press(message)
-    };
-
-    let mut controls = column![
-        button(
-            "Split horizontally",
-            Message::from(LayoutMessage::Split(pane_grid::Axis::Horizontal, pane)),
-        ),
-        button(
-            "Split vertically",
-            Message::from(LayoutMessage::Split(pane_grid::Axis::Vertical, pane)),
-        )
-    ]
-    .spacing(5)
-    .max_width(150);
-
-    if total_panes > 1 && !is_pinned {
-        controls = controls.push(
-            button("Close", Message::from(LayoutMessage::Close(pane)))
-                .style(theme::Button::Destructive),
-        );
-    }
-
-    let content = column![
-        text(format!("{}x{}", size.width, size.height)).size(24),
-        controls,
-    ]
-    .width(Length::Fill)
-    .spacing(10)
-    .align_items(Alignment::Center);
-
-    container(scrollable(content))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .padding(5)
-        .center_y()
-        .into()
-}
-*/
 
 fn view_controls<'a>(
     pane: pane_grid::Pane,
