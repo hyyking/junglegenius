@@ -9,6 +9,7 @@ edition = "2021"
 iced = {version = "0.8", features=["canvas", "svg"]}
 iced_native = { version = "0.9" }
 iced_graphics = { version = "0.7" }
+iced_lazy = {version = "0.5"}
 engine = { path = "../engine" }
 either = { version = "1.8" }
 lyon = { version = "1" }

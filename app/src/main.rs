@@ -1,215 +1,129 @@
-#![feature(let_chains)]
+use iced::alignment::{self, Alignment};
+use iced::executor;
+use iced::keyboard;
+use iced::theme::{self, Theme};
+use iced::widget::pane_grid::{self, PaneGrid};
+use iced::widget::{button, column, container, row, scrollable, text};
+use iced::{Application, Color, Command, Element, Length, Settings, Size, Subscription};
+use iced_lazy::responsive;
+use iced_native::{event, subscription, Event};
 
-use std::time::Duration;
-
-use engine::core::GameTimer;
-use engine::ecs::builder::EntityStoreBuilder;
-use engine::ecs::store::EntityStore;
-use engine::MinimapEngine;
-use iced::theme::Palette;
-use iced::widget::canvas;
-use iced::widget::{column, container, slider, text};
-use iced::{Color, Element, Length, Point, Sandbox, Settings};
-
+mod grid;
 mod information;
 mod map_overlay;
+mod message;
 mod minimap;
 mod utils;
 
-// mod wave;
-// use crate::wave::WaveSpawnerState;
-
-use crate::information::Card;
+use grid::{
+    pane::{Pane, PaneType},
+    AppGrid,
+};
+use message::{LayoutMessage, Message};
 
 pub fn main() -> iced::Result {
-    Slider::run(Settings::default())
+    JungleGenius::run(Settings::default())
 }
 
-#[derive(Debug, Clone)]
-pub enum Message {
-    SliderChanged(u16),
-    SelectCards(Point, Vec<Card>),
-    DragSink(usize, Point, Card),
-    UnselectCards,
-    StepRight,
+struct JungleGenius {
+    appgrid: AppGrid,
 }
 
-pub struct Slider {
-    slider_value: u16,
-
-    current_point: Option<Point>,
-    cards: Vec<Card>,
-
-    store: EntityStore,
-    engine: MinimapEngine,
-}
-
-impl Sandbox for Slider {
+impl Application for JungleGenius {
     type Message = Message;
+    type Theme = Theme;
+    type Executor = executor::Default;
+    type Flags = ();
 
-    fn new() -> Slider {
-        let slider_value = 60;
-
-        let mut builder = EntityStoreBuilder::new();
-        let mut engine = MinimapEngine {
-            timer: GameTimer::GAME_START,
-        };
-        engine::Engine::on_start(&mut engine, &mut builder);
-        let mut store = builder.build();
-
-        engine::Engine::on_step(
-            &mut engine,
-            &mut store,
-            GameTimer(Duration::from_secs(slider_value as u64)),
-        );
-
-        Slider {
-            slider_value,
-            cards: vec![],
-            current_point: None,
-            engine,
-            store,
-        }
+    fn new(_flags: ()) -> (Self, Command<Message>) {
+        (
+            Self {
+                appgrid: AppGrid::new(),
+            },
+            iced::Command::batch([
+                iced::window::maximize(true),
+                iced::window::request_user_attention(Some(
+                    iced::window::UserAttention::Informational,
+                )),
+            ]),
+        )
     }
 
     fn title(&self) -> String {
-        String::from("Wave Simulator")
+        String::from("JungleGenius - LoL Ressource & Pathing Computer")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::SliderChanged(value) => {
-                let forward = self.slider_value <= value;
-
-                if forward {
-                    let step = GameTimer(Duration::from_secs(u64::from(value - self.slider_value)));
-
-                    engine::Engine::on_step(&mut self.engine, &mut self.store, step);
-                }
-                /*
-                if self.gamestate.timer == GameTimer(Duration::from_secs(2 * 60)) {
-                    self.gamestate.on_event(engine::event::Event::Turret(
-                        TurretIndex::BLUE_TOP_OUTER,
-                        TurretEvent::Fall,
-                    ));
-                    self.gamestate.on_event(engine::event::Event::Inhibitor {
-                        team: Team::Red,
-                        lane: Lane::Bot,
-                        event: engine::event::InhibitorEvent::Fall(self.gamestate.timer),
-                    });
-
-                    self.gamestate.on_event(engine::event::Event::Turret(
-                        TurretIndex::BLUE_MID_OUTER,
-                        TurretEvent::TakePlate,
-                    ));
-                }
-                 */
-
-                self.slider_value = value;
-
-                if let Some(point) = self.current_point {
-                    /* self.update(Message::SelectCards(
-                        point,
-                        self.waves
-                            .iter()
-                            .flat_map(|g| g.describe(&self.gamestate, point))
-                            .collect(),
-                    )); */
-                }
-            }
-            Message::SelectCards(point, cards) => {
-                self.cards.clear();
-                self.current_point = Some(point);
-                self.cards.extend(cards);
-                /*
-                for card in cards {
-                    match card {
-                        Card::Wave { wave } => {
-                            for minion in wave.minions(&self.gamestate.timer) {
-                                self.cards.push(Card::Minion(
-                                    minion,
-                                    minion.current_stats(&self.gamestate.timer),
-                                ))
-                            }
-                        }
-                        _ => self.cards.push(card),
-                    }
-                }
-                 */
-            }
-            Message::UnselectCards => {
-                self.current_point = None;
-                self.cards.clear()
-            }
-            Message::StepRight => self.update(Message::SliderChanged(self.slider_value + 1)),
-            Message::DragSink(id, point, card) => {
-                /* self.waves[id].move_sink(point);
-                 *self.cards.last_mut().expect("no sink??") = card;  */
-            }
+            Message::Layout(layout) => self.appgrid.update(layout),
+            _ => unimplemented!(),
         }
     }
 
+    fn subscription(&self) -> Subscription<Message> {
+        subscription::events_with(|event, status| {
+            if let event::Status::Captured = status {
+                return None;
+            }
+
+            match event {
+                Event::Keyboard(keyboard::Event::KeyPressed {
+                    modifiers,
+                    key_code,
+                }) if modifiers.command() => handle_hotkey(key_code),
+                _ => None,
+            }
+        })
+    }
+
     fn view(&self) -> Element<Message> {
-        let value = self.slider_value;
+        let pane_grid = self
+            .appgrid
+            .panegrid()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .spacing(10);
 
-        let h_slider =
-            container(slider(0..=3600, value, Message::SliderChanged)).width(Length::Fill);
-
-        let text = text(format!("Current time: {:02}:{:02}", value / 60, value % 60));
-
-        let widget = map_overlay::MapWidget::new(
-            canvas(minimap::Minimap::new(&self.store)),
-            iced::widget::svg::Handle::from_path("map.svg"),
-        );
-
-        let informations = canvas(information::InformationCanvas { cards: &self.cards })
-            .width(Length::Fixed(256.0))
-            .height(Length::Fill);
-
-        container(
-            column![
-                container(
-                    iced::widget::row![
-                        container(widget)
-                            .align_x(iced_native::alignment::Horizontal::Right)
-                            .width(Length::FillPortion(2))
-                            .height(Length::Fill),
-                        container(informations)
-                            .align_x(iced_native::alignment::Horizontal::Left)
-                            .width(Length::FillPortion(1))
-                            .height(Length::Fill)
-                    ]
-                    .spacing(25)
-                )
-                .width(Length::Fill)
-                .height(Length::FillPortion(4)),
-                container(column![
-                    h_slider
-                        .width(Length::Fixed(512.0 + 25.0 + 256.0))
-                        .center_x(),
-                    text.width(Length::Shrink),
-                ])
-                .width(Length::Fill)
-                .height(Length::FillPortion(1))
-                .center_x()
-            ]
-            .align_items(iced::Alignment::Center)
-            .spacing(25),
-        )
-        .width(Length::Fill)
+        let player = row![
+            button(text(">")),
+            button(text("+")).on_press(Message::StepRight),
+        ]
         .height(Length::Fill)
-        .center_y()
+        .width(Length::Fill)
+        .spacing(10);
+
+        column![
+            container(pane_grid)
+                .width(Length::Fill)
+                .height(Length::FillPortion(14))
+                .padding(10),
+            iced::widget::horizontal_rule(2),
+            container(player)
+                .height(Length::FillPortion(1))
+                .width(Length::Fill)
+                .padding(10),
+        ]
         .into()
     }
+}
 
-    fn theme(&self) -> iced::Theme {
-        let a = iced::theme::Custom::new(Palette {
-            background: Color::from_rgb8(85, 85, 85),
-            text: Color::WHITE,
-            primary: Color::WHITE,
-            success: Color::from_rgb8(0, 255, 0),
-            danger: Color::from_rgb8(255, 0, 0),
-        });
-        iced::Theme::Custom(Box::new(a))
+fn handle_hotkey(key_code: keyboard::KeyCode) -> Option<Message> {
+    use keyboard::KeyCode;
+    use pane_grid::{Axis, Direction};
+
+    let direction = match key_code {
+        KeyCode::Up => Some(Direction::Up),
+        KeyCode::Down => Some(Direction::Down),
+        KeyCode::Left => Some(Direction::Left),
+        KeyCode::Right => Some(Direction::Right),
+        _ => None,
+    };
+
+    match key_code {
+        KeyCode::V => Some(LayoutMessage::SplitFocused(Axis::Vertical)),
+        KeyCode::H => Some(LayoutMessage::SplitFocused(Axis::Horizontal)),
+        KeyCode::W => Some(LayoutMessage::CloseFocused),
+        _ => direction.map(LayoutMessage::FocusAdjacent),
     }
+    .map(Into::into)
 }
