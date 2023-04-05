@@ -11,8 +11,10 @@ mod grid;
 mod information;
 mod map_overlay;
 mod message;
-mod minimap;
+// mod minimap;
 mod utils;
+
+mod engine_renderer;
 
 use grid::{
     pane::{Pane, PaneType},
@@ -32,9 +34,7 @@ pub fn main() -> iced::Result {
 
 struct JungleGenius {
     appgrid: AppGrid,
-
-    store: EntityStore,
-    engine: MinimapEngine,
+    renderer: engine_renderer::EngineRenderer,
 }
 
 impl Application for JungleGenius {
@@ -44,19 +44,10 @@ impl Application for JungleGenius {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        let mut builder = EntityStoreBuilder::new();
-        let mut engine = MinimapEngine {
-            timer: GameTimer::GAME_START,
-        };
-        engine::Engine::on_start(&mut engine, &mut builder);
-        let mut store = builder.build();
-        engine::Engine::on_step(&mut engine, &mut store, GameTimer(Duration::from_secs(60)));
-
         (
             Self {
                 appgrid: AppGrid::new(),
-                store,
-                engine,
+                renderer: engine_renderer::EngineRenderer::game_start(),
             },
             iced::Command::batch([
                 iced::window::maximize(true),
@@ -75,11 +66,7 @@ impl Application for JungleGenius {
         match message {
             Message::Layout(layout) => self.appgrid.update(layout),
             Message::StepRight => {
-                engine::Engine::on_step(
-                    &mut self.engine,
-                    &mut self.store,
-                    GameTimer(Duration::from_secs(1)),
-                );
+                self.renderer.step_right();
                 Command::none()
             }
             a => unimplemented!("{:?}", a),
@@ -105,7 +92,7 @@ impl Application for JungleGenius {
     fn view(&self) -> Element<Message> {
         let pane_grid = self
             .appgrid
-            .panegrid(&self.store)
+            .view(&self.renderer)
             .width(Length::Fill)
             .height(Length::Fill)
             .spacing(5);

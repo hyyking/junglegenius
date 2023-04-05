@@ -8,10 +8,10 @@ pub struct PaneAttributes {
     closable: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PaneType {
     Minimap,
-    EngineSelection,
+    EngineSelection(Vec<engine::ecs::UnitId>),
 }
 
 impl Pane {
@@ -25,9 +25,9 @@ impl Pane {
         }
     }
 
-    pub fn selection() -> Self {
+    pub fn selection(selection: Vec<engine::ecs::UnitId>) -> Self {
         Self {
-            kind: PaneType::EngineSelection,
+            kind: PaneType::EngineSelection(selection),
             attrs: PaneAttributes {
                 pinned: false,
                 closable: true,

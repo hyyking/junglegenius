@@ -14,9 +14,9 @@ impl From<LayoutMessage> for Message {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum LayoutMessage {
-    Split(pane_grid::Axis),
+    Split(pane_grid::Axis, Vec<engine::ecs::UnitId>),
     Close(pane_grid::Pane),
     Maximize(pane_grid::Pane),
     Restore,

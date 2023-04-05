@@ -31,9 +31,9 @@ impl AppGrid {
 
     pub fn update(&mut self, message: LayoutMessage) -> Command<Message> {
         match message {
-            LayoutMessage::Split(axis) => {
+            LayoutMessage::Split(axis, selection) => {
                 let pane = self.focus.unwrap_or(self.minimap);
-                let result = self.panes.split(axis, &pane, Pane::selection());
+                let result = self.panes.split(axis, &pane, Pane::selection(selection));
 
                 if pane == self.minimap {
                     if let Some((_, split)) = result {
@@ -44,6 +44,9 @@ impl AppGrid {
             }
 
             LayoutMessage::Close(pane) => {
+                if self.focus == Some(pane) {
+                    self.focus.take();
+                }
                 if let Some((_, sibling)) = self.panes.close(&pane) {
                     /*
                         self.focus = Some(sibling);
@@ -55,7 +58,7 @@ impl AppGrid {
 
             LayoutMessage::SplitFocused(axis) => {
                 if let Some(pane) = self.focus {
-                    let result = self.panes.split(axis, &pane, Pane::selection());
+                    let result = self.panes.split(axis, &pane, Pane::selection(vec![]));
 
                     if let Some((pane, _)) = result {
                         self.focus = Some(pane);
@@ -106,9 +109,9 @@ impl AppGrid {
         Command::none()
     }
 
-    pub fn panegrid<'a>(
+    pub fn view<'a>(
         &'a self,
-        store: &'a engine::ecs::store::EntityStore,
+        store: &'a crate::engine_renderer::EngineRenderer,
     ) -> iced::widget::PaneGrid<'a, Message> {
         let focus = self.focus;
         let total_panes = self.panes.len();
@@ -133,7 +136,7 @@ impl AppGrid {
                     .padding(2)
                     .style(style::minimap_bar as fn(&iced::Theme) -> container::Appearance),
 
-                    PaneType::EngineSelection => {
+                    PaneType::EngineSelection(_) => {
                         let pin_button =
                             button(text(if pane.is_pinned() { "Unpin" } else { "Pin" }).size(14))
                                 .on_press(Message::from(LayoutMessage::TogglePin(id)))
@@ -172,14 +175,18 @@ impl AppGrid {
                         pane_grid::Content::new(
                             container(crate::map_overlay::MapWidget::new(
                                 iced::widget::svg::Handle::from_path("map.svg"),
-                                crate::minimap::Minimap::new(store),
+                                store,
                             )).center_x().center_y().height(Length::Fill).width(Length::Fill).padding(10)
                         )
                     }
-                    PaneType::EngineSelection => {
-                        pane_grid::Content::new(
+                    PaneType::EngineSelection(ref units) => {
+                        let mut cards = column![
                             text("implement various engine queries and aggregations, would be cool to have a dropdown in the menu")
-                        )
+                        ].spacing(10);
+                        for unit in units {
+                            cards = cards.push(text(format!("{:?}", unit)));
+                        }
+                        pane_grid::Content::new(cards)
                     }
                 };
 
