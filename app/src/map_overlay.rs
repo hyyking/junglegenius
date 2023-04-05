@@ -127,7 +127,7 @@ where
     P: iced::widget::canvas::Program<Message, Theme>,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn layout(&self, renderer: &R, bounds: Size, position: iced::Point) -> layout::Node {
+    fn layout(&self, renderer: &R, _bounds: Size, position: iced::Point) -> layout::Node {
         let layout = <iced::widget::Svg<R> as iced_native::Widget<Message, R>>::layout(
             &self.image,
             renderer,

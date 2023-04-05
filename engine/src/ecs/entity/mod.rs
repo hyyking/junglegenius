@@ -1,4 +1,4 @@
-use rstar::{primitives::GeomWithData, Envelope, RTreeObject};
+use rstar::{Envelope};
 
 use crate::{
     core::Team,

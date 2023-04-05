@@ -1,7 +1,5 @@
 use std::{collections::HashMap, ptr::NonNull};
 
-use rstar::primitives::GeomWithData;
-
 use crate::{
     ecs::{
         entity::{Entity, EntityBuilder, SpecificComponent, SpecificComponentBuilder},
@@ -18,7 +16,6 @@ use crate::{
 
 use super::entity::UnitRemoval;
 
-type PointId = rstar::primitives::GeomWithData<PositionComponent, UnitId>;
 type WithId<T> = (UnitId, T);
 
 pub struct EntityStore {

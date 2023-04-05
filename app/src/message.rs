@@ -3,9 +3,9 @@ use iced::widget::pane_grid;
 #[derive(Debug, Clone)]
 pub enum Message {
     Layout(LayoutMessage),
-    UnselectCards,
-    SelectCards(iced::Point, Vec<crate::information::Card>),
     StepRight,
+    // UnselectCards,
+    // SelectCards(iced::Point, Vec<crate::information::Card>),
 }
 
 impl From<LayoutMessage> for Message {

@@ -5,9 +5,8 @@ use pane::{Pane, PaneType};
 use crate::message::{LayoutMessage, Message};
 
 use iced::{
-    alignment, theme,
-    widget::{button, column, container, pane_grid, row, scrollable, text, PaneGrid},
-    Alignment, Color, Command, Element, Length, Size,
+    theme,
+    widget::{button, column, container, pane_grid, row, text, PaneGrid}, Color, Command, Element, Length,
 };
 
 const PANE_ID_COLOR_UNFOCUSED: Color = Color::from_rgb(0.0, 0.0, 0.0);
@@ -47,7 +46,7 @@ impl AppGrid {
                 if self.focus == Some(pane) {
                     self.focus.take();
                 }
-                if let Some((_, sibling)) = self.panes.close(&pane) {
+                if let Some((_, _sibling)) = self.panes.close(&pane) {
                     /*
                         self.focus = Some(sibling);
                     */
@@ -97,7 +96,7 @@ impl AppGrid {
             LayoutMessage::CloseFocused => {
                 if let Some(pane) = self.focus {
                     if !self.panes.get(&pane).map(Pane::is_pinned).unwrap_or(false) {
-                        if let Some((_, sibling)) = self.panes.close(&pane) {
+                        if let Some((_, _sibling)) = self.panes.close(&pane) {
                             /*
                             self.focus = Some(sibling);
                             */

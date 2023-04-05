@@ -1,32 +1,20 @@
-use iced::alignment::{self, Alignment};
+use iced::alignment::Alignment;
 use iced::executor;
 use iced::keyboard;
-use iced::theme::{self, Theme};
-use iced::widget::pane_grid::{self, PaneGrid};
-use iced::widget::{button, column, container, row, scrollable, text};
-use iced::{Application, Color, Command, Element, Length, Settings, Size, Subscription};
+use iced::theme::Theme;
+use iced::widget::pane_grid::{self};
+use iced::widget::{button, column, container, row, text};
+use iced::{Application, Color, Command, Element, Length, Settings, Subscription};
 use iced_native::{event, subscription, Event};
 
+mod engine_renderer;
 mod grid;
-mod information;
 mod map_overlay;
 mod message;
-// mod minimap;
 mod utils;
 
-mod engine_renderer;
-
-use grid::{
-    pane::{Pane, PaneType},
-    AppGrid,
-};
+use grid::AppGrid;
 use message::{LayoutMessage, Message};
-
-use engine::core::GameTimer;
-use engine::ecs::builder::EntityStoreBuilder;
-use engine::ecs::store::EntityStore;
-use engine::MinimapEngine;
-use std::time::Duration;
 
 pub fn main() -> iced::Result {
     JungleGenius::run(Settings::default())
@@ -69,7 +57,6 @@ impl Application for JungleGenius {
                 self.renderer.step_right();
                 Command::none()
             }
-            a => unimplemented!("{:?}", a),
         }
     }
 
