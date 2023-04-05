@@ -108,17 +108,30 @@ impl Program<Message> for EngineRenderer {
                                     })
                                     .cloned()
                                     .collect(),
-                                SelectionState::Rectangle { a, b } => {
-                                    vec![]
-                                }
+                                SelectionState::Rectangle { a, b } => self
+                                    .store
+                                    .nav
+                                    .tree
+                                    .locate_in_envelope(&oobb::OOBB::from_corners(
+                                        [a.x, a.y],
+                                        [b.x, b.y],
+                                    ))
+                                    .filter_map(|c| match c {
+                                        CollisionBox::Polygon(_) => None,
+                                        CollisionBox::Unit { guid, .. } => Some(guid),
+                                    })
+                                    .cloned()
+                                    .collect(),
                             };
 
                         return (
                             iced::widget::canvas::event::Status::Captured,
-                            Some(Message::Layout(LayoutMessage::Split(
-                                iced_native::widget::pane_grid::Axis::Vertical,
-                                selection,
-                            ))),
+                            (!selection.is_empty()).then_some(Message::Layout(
+                                LayoutMessage::Split(
+                                    iced_native::widget::pane_grid::Axis::Vertical,
+                                    selection,
+                                ),
+                            )),
                         );
                     }
                     iced_native::mouse::Event::CursorMoved { .. } => match state {
@@ -149,8 +162,24 @@ impl Program<Message> for EngineRenderer {
         let game_frame = self.current_frame.draw(MAP_BOUNDS.size(), |frame| {
             frame.scale(bounds.width / frame.width());
 
-            for data in self.store.nav.tree.iter() {
-                match data {
+            for (position, guid) in self.store.nav.tree.iter().filter_map(|c| match c {
+                CollisionBox::Unit { position, guid } => Some((position, guid)),
+                CollisionBox::Polygon(_) => None,
+            }) {
+                let pos = position.point;
+                let radius = position.radius;
+                let team = if let Some(team) = guid.team() {
+                    crate::utils::team_color(team)
+                } else {
+                    iced::Color::from_rgb8(80, 80, 80)
+                };
+
+                frame.fill(
+                    &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
+                    team,
+                );
+
+                /*
                     CollisionBox::Polygon(poly) => {
                         /* TODO: this is made for debuging the walls */
                         let path = iced::widget::canvas::Path::new(|builder| {
@@ -170,24 +199,7 @@ impl Program<Message> for EngineRenderer {
                                 .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
                         );
                     }
-                    CollisionBox::Unit { position, guid } => {
-                        let pos = position.point;
-                        let radius = position.radius;
-                        let team = if let Some(team) = guid.team() {
-                            crate::utils::team_color(team)
-                        } else {
-                            iced::Color::from_rgb8(80, 80, 80)
-                        };
-
-                        frame.fill(
-                            &iced::widget::canvas::Path::circle(
-                                iced::Point::new(pos.x, pos.y),
-                                radius,
-                            ),
-                            team,
-                        );
-                    }
-                }
+                */
             }
         });
 

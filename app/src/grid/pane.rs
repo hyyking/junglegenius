@@ -8,10 +8,19 @@ pub struct PaneAttributes {
     closable: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum PaneType {
     Minimap,
     EngineSelection(Vec<engine::ecs::UnitId>),
+}
+
+impl std::fmt::Debug for PaneType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Minimap => write!(f, "Minimap"),
+            Self::EngineSelection(_) => write!(f, "Selection"),
+        }
+    }
 }
 
 impl Pane {
