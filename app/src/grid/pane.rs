@@ -1,11 +1,13 @@
+#[derive(Debug, Clone)]
 pub struct Pane {
     pub kind: PaneType,
-    attrs: PaneAttributes,
+    pub attrs: PaneAttributes,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct PaneAttributes {
-    pinned: bool,
-    closable: bool,
+    pub pinned: bool,
+    pub closable: bool,
 }
 
 #[derive(Clone)]

@@ -1,12 +1,13 @@
 pub mod pane;
 
-use pane::{Pane, PaneType};
+use pane::{Pane, PaneType, PaneAttributes};
 
 use crate::message::{LayoutMessage, Message};
 
 use iced::{
     theme,
-    widget::{button, column, container, pane_grid, row, text, PaneGrid}, Color, Command, Element, Length,
+    widget::{button, column, container, pane_grid, row, text, PaneGrid},
+    Color, Command, Element, Length,
 };
 
 const PANE_ID_COLOR_UNFOCUSED: Color = Color::from_rgb(0.0, 0.0, 0.0);
@@ -35,7 +36,8 @@ impl AppGrid {
                 let result = self.panes.split(axis, &pane, Pane::selection(selection));
 
                 if pane == self.minimap {
-                    if let Some((_, split)) = result {
+                    if let Some((p, split)) = result {
+                        self.focus = Some(p);
                         self.panes.resize(&split, 0.6);
                     }
                     // self.focus = Some(pane);
@@ -127,8 +129,7 @@ impl AppGrid {
                     .controls(view_controls(
                         id,
                         total_panes,
-                        matches!(pane.kind, PaneType::Minimap),
-                        false,
+                        &pane.attrs, 
                         is_maximized,
                     ))
                     .always_show_controls()
@@ -155,8 +156,7 @@ impl AppGrid {
                             .controls(view_controls(
                                 id,
                                 total_panes,
-                                matches!(pane.kind, PaneType::Minimap),
-                                pane.is_pinned(),
+                                &pane.attrs,
                                 is_maximized,
                             ))
                             .always_show_controls()
@@ -185,7 +185,7 @@ impl AppGrid {
                         for unit in units {
                             cards = cards.push(text(format!("{:?}", unit)));
                         }
-                        pane_grid::Content::new(cards)
+                        pane_grid::Content::new(container(cards.padding(10)))
                     }
                 };
 
@@ -205,8 +205,7 @@ impl AppGrid {
 fn view_controls<'a>(
     pane: pane_grid::Pane,
     total_panes: usize,
-    is_minimap: bool,
-    is_pinned: bool,
+    attrs: &PaneAttributes,
     is_maximized: bool,
 ) -> Element<'a, Message> {
     let mut row = row![].spacing(5);
@@ -227,7 +226,7 @@ fn view_controls<'a>(
         row = row.push(toggle);
     }
 
-    if total_panes > 1 && !is_pinned && !is_minimap {
+    if total_panes > 1 && attrs.closable && !attrs.pinned{
         let close = button(text("Close").size(14))
             .style(theme::Button::Destructive)
             .on_press(LayoutMessage::Close(pane).into())
