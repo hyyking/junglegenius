@@ -44,6 +44,16 @@ impl AppGrid {
                 }
             }
 
+            LayoutMessage::AppendSelection(selection) => {
+                if let Some(focused) = self.focus.and_then(|p| self.panes.get_mut(&p)) {
+                    match focused.kind {
+                        PaneType::EngineSelection(ref mut units) => units.extend(selection),
+                        _ => {}
+                    }
+
+                }
+            }
+
             LayoutMessage::Close(pane) => {
                 if self.focus == Some(pane) {
                     self.focus.take();

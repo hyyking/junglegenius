@@ -55,6 +55,12 @@ impl EngineRenderer {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Selection {
+    append_mode: bool,
+    state: SelectionState,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum SelectionState {
     #[default]
     NoSelection,
@@ -66,7 +72,7 @@ pub enum SelectionState {
 }
 
 impl Program<Message> for EngineRenderer {
-    type State = SelectionState;
+    type State = Selection;
 
     fn update(
         &self,
@@ -77,70 +83,79 @@ impl Program<Message> for EngineRenderer {
     ) -> (iced::widget::canvas::event::Status, Option<Message>) {
         let scale = bounds.width / MAP_BOUNDS.width;
         match event {
+            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::ModifiersChanged(m)) => {
+                state.append_mode = dbg!(m.contains(iced::keyboard::Modifiers::CTRL));
+            }
             iced::widget::canvas::Event::Mouse(mouseev) => {
                 let Some(position) = cursor.position_in(&bounds) else { return (iced::widget::canvas::event::Status::Ignored, None) };
                 let point = iced::Point::new(position.x / scale, position.y / scale);
 
                 match mouseev {
                     iced_native::mouse::Event::ButtonPressed(iced_native::mouse::Button::Left) => {
-                        *state = SelectionState::Point(point);
+                        state.state = SelectionState::Point(point);
                         return (iced::widget::canvas::event::Status::Captured, None);
                     }
 
                     iced_native::mouse::Event::ButtonPressed(iced_native::mouse::Button::Right) => {
-                        *state = SelectionState::NoSelection;
+                        state.state = SelectionState::NoSelection;
                         return (iced::widget::canvas::event::Status::Captured, None);
                     }
                     iced_native::mouse::Event::ButtonReleased(iced_native::mouse::Button::Left) => {
-                        let selection: Vec<engine::ecs::UnitId> =
-                            match std::mem::replace(state, SelectionState::NoSelection) {
-                                SelectionState::NoSelection => {
-                                    return (iced::widget::canvas::event::Status::Ignored, None)
-                                }
-                                SelectionState::Point(p) => self
-                                    .store
-                                    .nav
-                                    .tree
-                                    .locate_all_at_point(&[p.x, p.y])
-                                    .filter_map(|c| match c {
-                                        CollisionBox::Polygon(_) => None,
-                                        CollisionBox::Unit { guid, .. } => Some(guid),
-                                    })
-                                    .cloned()
-                                    .collect(),
-                                SelectionState::Rectangle { a, b } => self
-                                    .store
-                                    .nav
-                                    .tree
-                                    .locate_in_envelope(&oobb::OOBB::from_corners(
-                                        [a.x, a.y],
-                                        [b.x, b.y],
-                                    ))
-                                    .filter_map(|c| match c {
-                                        CollisionBox::Polygon(_) => None,
-                                        CollisionBox::Unit { guid, .. } => Some(guid),
-                                    })
-                                    .cloned()
-                                    .collect(),
-                            };
+                        let selection: Vec<engine::ecs::UnitId> = match std::mem::replace(
+                            &mut state.state,
+                            SelectionState::NoSelection,
+                        ) {
+                            SelectionState::NoSelection => {
+                                return (iced::widget::canvas::event::Status::Ignored, None)
+                            }
+                            SelectionState::Point(p) => self
+                                .store
+                                .nav
+                                .tree
+                                .locate_all_at_point(&[p.x, p.y])
+                                .filter_map(|c| match c {
+                                    CollisionBox::Polygon(_) => None,
+                                    CollisionBox::Unit { guid, .. } => Some(guid),
+                                })
+                                .cloned()
+                                .collect(),
+                            SelectionState::Rectangle { a, b } => self
+                                .store
+                                .nav
+                                .tree
+                                .locate_in_envelope(&oobb::OOBB::from_corners(
+                                    [a.x, a.y],
+                                    [b.x, b.y],
+                                ))
+                                .filter_map(|c| match c {
+                                    CollisionBox::Polygon(_) => None,
+                                    CollisionBox::Unit { guid, .. } => Some(guid),
+                                })
+                                .cloned()
+                                .collect(),
+                        };
 
-                        return (
-                            iced::widget::canvas::event::Status::Captured,
-                            (!selection.is_empty()).then_some(Message::Layout(
-                                LayoutMessage::Split(
-                                    iced_native::widget::pane_grid::Axis::Vertical,
-                                    selection,
-                                ),
-                            )),
-                        );
+                        if selection.is_empty() {
+                            return (iced::widget::canvas::event::Status::Captured, None);
+                        }
+
+                        let message = if state.append_mode {
+                            Message::Layout(LayoutMessage::AppendSelection(selection))
+                        } else {
+                            Message::Layout(LayoutMessage::Split(
+                                iced_native::widget::pane_grid::Axis::Vertical,
+                                selection,
+                            ))
+                        };
+                        return (iced::widget::canvas::event::Status::Captured, Some(message));
                     }
-                    iced_native::mouse::Event::CursorMoved { .. } => match state {
+                    iced_native::mouse::Event::CursorMoved { .. } => match state.state {
                         SelectionState::Point(a) => {
-                            *state = SelectionState::Rectangle { a: *a, b: point };
+                            state.state = SelectionState::Rectangle { a: a, b: point };
                         }
 
                         SelectionState::Rectangle { a, .. } => {
-                            *state = SelectionState::Rectangle { a: *a, b: point };
+                            state.state = SelectionState::Rectangle { a: a, b: point };
                         }
                         _ => return (iced::widget::canvas::event::Status::Ignored, None),
                     },
@@ -206,7 +221,7 @@ impl Program<Message> for EngineRenderer {
         let mut selection_frame = iced::widget::canvas::Frame::new(MAP_BOUNDS.size());
         selection_frame.scale(bounds.width / MAP_BOUNDS.width);
 
-        match state {
+        match state.state {
             SelectionState::Rectangle { a, b } => {
                 let selection = iced::widget::canvas::Path::rectangle(
                     iced::Point::new(a.x.min(b.x), a.y.min(b.y)),

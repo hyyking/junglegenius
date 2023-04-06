@@ -13,7 +13,7 @@ pub struct PaneAttributes {
 #[derive(Clone)]
 pub enum PaneType {
     Minimap,
-    EngineSelection(Vec<engine::ecs::UnitId>),
+    EngineSelection(HashSet<engine::ecs::UnitId>),
 }
 
 impl std::fmt::Debug for PaneType {
