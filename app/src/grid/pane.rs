@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 #[derive(Debug, Clone)]
 pub struct Pane {
     pub kind: PaneType,
@@ -38,7 +40,7 @@ impl Pane {
 
     pub fn selection(selection: Vec<engine::ecs::UnitId>) -> Self {
         Self {
-            kind: PaneType::EngineSelection(selection),
+            kind: PaneType::EngineSelection(HashSet::from_iter(selection)),
             attrs: PaneAttributes {
                 pinned: false,
                 closable: true,

@@ -84,7 +84,7 @@ impl Program<Message> for EngineRenderer {
         let scale = bounds.width / MAP_BOUNDS.width;
         match event {
             iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::ModifiersChanged(m)) => {
-                state.append_mode = dbg!(m.contains(iced::keyboard::Modifiers::CTRL));
+                state.append_mode = m.contains(iced::keyboard::Modifiers::CTRL);
             }
             iced::widget::canvas::Event::Mouse(mouseev) => {
                 let Some(position) = cursor.position_in(&bounds) else { return (iced::widget::canvas::event::Status::Ignored, None) };
@@ -174,8 +174,8 @@ impl Program<Message> for EngineRenderer {
         bounds: iced::Rectangle,
         _cursor: iced::widget::canvas::Cursor,
     ) -> Vec<iced::widget::canvas::Geometry> {
-        let game_frame = self.current_frame.draw(MAP_BOUNDS.size(), |frame| {
-            frame.scale(bounds.width / frame.width());
+        let game_frame = self.current_frame.draw(bounds.size(), |frame| {
+            frame.scale(frame.width() / MAP_BOUNDS.width);
 
             for (position, guid) in self.store.nav.tree.iter().filter_map(|c| match c {
                 CollisionBox::Unit { position, guid } => Some((position, guid)),
@@ -218,8 +218,8 @@ impl Program<Message> for EngineRenderer {
             }
         });
 
-        let mut selection_frame = iced::widget::canvas::Frame::new(MAP_BOUNDS.size());
-        selection_frame.scale(bounds.width / MAP_BOUNDS.width);
+        let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());
+        selection_frame.scale(selection_frame.width() / MAP_BOUNDS.width);
 
         match state.state {
             SelectionState::Rectangle { a, b } => {
