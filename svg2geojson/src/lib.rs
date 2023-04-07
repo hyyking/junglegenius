@@ -3,7 +3,7 @@ use std::{io::Write, ops::Deref};
 use geojson::{feature::Id, Feature, LineStringType};
 use lyon_algorithms::walk::{RegularPattern, WalkerEvent};
 use lyon_path::{builder::SvgPathBuilder, Path};
-use parse::Operation;
+use parse::{Operation, RGB};
 
 pub mod parse;
 
@@ -14,24 +14,31 @@ pub fn build_path(svg: &str) -> Path {
     )); // TODO: make this dependent on variables
         // .transformed(Translation::new(-120.0, -120.0));
 
-    for op in parse::path_to_operations(svg) {
+    for op in parse::path_to_operations(svg).map(|(_, ops)| ops).unwrap() {
         match op {
-            Operation::M(to) => SvgPathBuilder::move_to(&mut builder, to),
-            Operation::L(to) => {
-                SvgPathBuilder::line_to(&mut builder, to);
+            Operation::MoveTo(to) => SvgPathBuilder::move_to(&mut builder, to),
+            Operation::LineTo(to) => SvgPathBuilder::line_to(&mut builder, to),
+            Operation::QuadBezierTo { ctrl, to } => {
+                SvgPathBuilder::quadratic_bezier_to(&mut builder, ctrl, to)
             }
-            Operation::Q { ctrl, to } => {
-                SvgPathBuilder::quadratic_bezier_to(&mut builder, ctrl, to);
-            }
-            Operation::A {
+            Operation::ArcTo {
                 radii,
                 x_rotation,
                 flags,
                 to,
-            } => {
-                SvgPathBuilder::arc_to(&mut builder, radii, x_rotation, flags, to);
-            }
+            } => SvgPathBuilder::arc_to(&mut builder, radii, x_rotation, flags, to),
             Operation::Close => SvgPathBuilder::close(&mut builder),
+            Operation::RelMoveTo(to) => SvgPathBuilder::relative_move_to(&mut builder, to),
+            Operation::RelQuadBezierTo { ctrl, to } => {
+                SvgPathBuilder::relative_quadratic_bezier_to(&mut builder, ctrl, to)
+            }
+            Operation::RelLineTo(to) => SvgPathBuilder::relative_line_to(&mut builder, to),
+            Operation::RelArcTo {
+                radii,
+                x_rotation,
+                flags,
+                to,
+            } => SvgPathBuilder::relative_arc_to(&mut builder, radii, x_rotation, flags, to),
         };
     }
 
@@ -76,8 +83,13 @@ pub fn svg2geojson_filter_rgb(
     {
         match event {
             svg::parser::Event::Tag("path", _, attrs) => {
-                let fill = attrs.get("fill").ok_or(Error::GetRGB)?.deref();
-                let (_, rgb) = parse::parse_rgb(fill).map_err(|_| Error::ParseRGB)?;
+                let rgb = if let Some(fill) = attrs.get("fill") {
+                    nom::branch::alt((parse::parse_rgb, parse::parse_hex_rgb))(fill)
+                        .map_err(|_| Error::ParseRGB)?
+                        .1
+                } else {
+                    RGB { r: 0, g: 0, b: 0 }
+                };
 
                 if !filter(rgb) {
                     continue;

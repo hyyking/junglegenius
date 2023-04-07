@@ -1,0 +1,15 @@
+[package]
+name = "maptri"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+svg2geojson = {path = "../svg2geojson"}
+geojson = {version = "0.24", features=["geo-types"]}
+geo = {version = "0.24"}
+spade = {version = "2.1"}
+
+[build-dependencies]
+svg2geojson = {path = "../svg2geojson"}

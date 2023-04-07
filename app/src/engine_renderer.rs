@@ -5,21 +5,15 @@ use crate::message::{LayoutMessage, Message};
 use engine::core::GameTimer;
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
-use engine::ecs::structures::MAP_BOUNDS as SIMBOUNDS;
+use engine::ecs::structures::MAP_BOUNDS;
 use engine::nav_engine::CollisionBox;
 use engine::MinimapEngine;
-
-pub const MAP_BOUNDS: iced::Rectangle = iced::Rectangle {
-    x: SIMBOUNDS.x,
-    y: SIMBOUNDS.y,
-    width: SIMBOUNDS.width,
-    height: SIMBOUNDS.height,
-};
 
 pub struct EngineRenderer {
     pub store: EntityStore,
     pub engine: MinimapEngine,
     current_frame: iced::widget::canvas::Cache,
+    navmesh: Vec<geo::Polygon>,
 }
 
 impl EngineRenderer {
@@ -37,10 +31,20 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(60)),
         );
 
+        let file = std::fs::File::open("navmesh.json").unwrap();
+        let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
+            .unwrap();
+        let navmesh = a
+            .features
+            .iter()
+            .map(|f| geo::Polygon::try_from(f.clone()).unwrap())
+            .collect();
+
         Self {
             store,
             engine,
             current_frame: iced::widget::canvas::Cache::new(),
+            navmesh,
         }
     }
 
@@ -216,6 +220,26 @@ impl Program<Message> for EngineRenderer {
                     }
                 */
             }
+            /*
+            for mesh in &self.navmesh {
+                let path = iced::widget::canvas::Path::new(|builder| {
+                    for line in mesh.exterior().lines() {
+                        let start = line.start;
+                        let end = line.end;
+
+                        builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
+                        builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
+                    }
+                });
+
+                frame.stroke(
+                    &path,
+                    iced::widget::canvas::Stroke::default()
+                        .with_width(1.0)
+                        .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
+                );
+            }
+             */
         });
 
         let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());

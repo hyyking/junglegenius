@@ -49,6 +49,8 @@ name = "app"
 version = "0.1.0"
 dependencies = [
  "engine",
+ "geo",
+ "geojson",
  "iced",
  "iced_native",
  "lyon",
@@ -1419,6 +1421,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "maptri"
+version = "0.1.0"
+dependencies = [
+ "geo",
+ "geojson",
+ "spade",
+ "svg2geojson",
+]
+
+[[package]]
 name = "matches"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1726,6 +1738,12 @@ dependencies = [
  "geo",
  "rstar",
 ]
+
+[[package]]
+name = "optional"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978aa494585d3ca4ad74929863093e87cac9790d81fe7aba2b3dc2890643a0fc"
 
 [[package]]
 name = "ordered-float"
@@ -2304,6 +2322,18 @@ checksum = "0a345c870a1fae0b1b779085e81b51e614767c239e93503588e54c5b17f4b0e8"
 dependencies = [
  "smithay-client-toolkit",
  "wayland-client",
+]
+
+[[package]]
+name = "spade"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1190e0e8f4eb17fc3dbb2d20e1142676e56aaac3daede39f64a3302d687b80f3"
+dependencies = [
+ "num-traits",
+ "optional",
+ "robust",
+ "smallvec",
 ]
 
 [[package]]

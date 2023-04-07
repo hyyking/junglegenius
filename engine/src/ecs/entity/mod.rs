@@ -1,4 +1,4 @@
-use rstar::{Envelope};
+use rstar::Envelope;
 
 use crate::{
     core::Team,

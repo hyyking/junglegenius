@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use geo::{LineString, Polygon};
 use geojson::FeatureCollection;
 
-
 use crate::{
     ecs::{
         entity::{Entity, SpecificComponent},

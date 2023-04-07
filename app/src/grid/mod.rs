@@ -1,6 +1,6 @@
 pub mod pane;
 
-use pane::{Pane, PaneType, PaneAttributes};
+use pane::{Pane, PaneAttributes, PaneType};
 
 use crate::message::{LayoutMessage, Message};
 
@@ -50,7 +50,6 @@ impl AppGrid {
                         PaneType::EngineSelection(ref mut units) => units.extend(selection),
                         _ => {}
                     }
-
                 }
             }
 
@@ -139,7 +138,7 @@ impl AppGrid {
                     .controls(view_controls(
                         id,
                         total_panes,
-                        &pane.attrs, 
+                        &pane.attrs,
                         is_maximized,
                     ))
                     .always_show_controls()
@@ -236,7 +235,7 @@ fn view_controls<'a>(
         row = row.push(toggle);
     }
 
-    if total_panes > 1 && attrs.closable && !attrs.pinned{
+    if total_panes > 1 && attrs.closable && !attrs.pinned {
         let close = button(text("Close").size(14))
             .style(theme::Button::Destructive)
             .on_press(LayoutMessage::Close(pane).into())

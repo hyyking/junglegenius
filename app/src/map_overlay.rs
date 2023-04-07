@@ -1,7 +1,7 @@
 use iced::widget::svg::StyleSheet;
 use iced::widget::{Canvas, Svg};
 use iced::{Length, Rectangle, Size};
-use iced_native::layout::{Node};
+use iced_native::layout::Node;
 use iced_native::renderer::Renderer;
 use iced_native::widget::{Tree, Widget};
 use iced_native::{layout, Overlay};

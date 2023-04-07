@@ -1,5 +1,3 @@
-
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PositionComponent {
     pub point: lyon::math::Point,
