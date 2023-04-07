@@ -39,6 +39,8 @@ pub fn build_path(svg: &str) -> Path {
                 flags,
                 to,
             } => SvgPathBuilder::relative_arc_to(&mut builder, radii, x_rotation, flags, to),
+            Operation::VerticalLineTo(to) => SvgPathBuilder::vertical_line_to(&mut builder, to),
+            
         };
     }
 
@@ -108,7 +110,7 @@ pub fn svg2geojson_filter_rgb(
                     foreign_members: None,
                 });
             }
-            _ => {}
+            ev => {dbg!(ev);},
         }
     }
 

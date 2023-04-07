@@ -61,6 +61,7 @@ pub fn parse_hex_rgb(input: &str) -> IResult<&str, RGB> {
 
 #[derive(Debug)]
 pub enum Operation {
+    VerticalLineTo(f32),
     RelMoveTo(Vector<f32>),
     MoveTo(Point<f32>), // moveto
     RelLineTo(Vector<f32>),
@@ -93,10 +94,14 @@ pub fn path_to_operations(svg: &str) -> IResult<&str, Vec<Operation>> {
 }
 
 pub(crate) fn parse_op(s: &str) -> nom::IResult<&str, Operation> {
-    let (s, op) = one_of("MLHVCSQTAZmqla")(s)?;
+    let (s, op) = one_of("MLHVCSQTAZVHmqla")(s)?;
     let (s, _) = space0(s)?;
 
     let (s, operation) = match op {
+        'V' => {
+            let (s, mv) = readf32(s)?;
+            (s, Operation::VerticalLineTo(mv))   
+        }
         'm' => {
             let (s, mv) = read_vector(s)?;
             (s, Operation::RelMoveTo(mv))
