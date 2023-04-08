@@ -97,12 +97,12 @@ impl EntityStoreBuilder {
                         position: data.clone(),
                         guid: guid.clone(),
                     })
-                    .chain(self.map.features.into_iter().map(|f| {
-                        CollisionBox::Polygon(Polygon::new(
-                            LineString::try_from(f).unwrap(),
-                            vec![],
-                        ))
-                    }))
+                    .chain(
+                        self.map
+                            .features
+                            .into_iter()
+                            .map(|f| CollisionBox::Polygon(Polygon::try_from(f).unwrap())),
+                    )
                     .collect(),
             ),
         };

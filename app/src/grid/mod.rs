@@ -182,7 +182,7 @@ impl AppGrid {
                     PaneType::Minimap => {
                         pane_grid::Content::new(
                             container(crate::map_overlay::MapWidget::new(
-                                iced::widget::svg::Handle::from_path("map.svg"),
+                                iced::widget::svg::Handle::from_path("map2.svg"),
                                 store,
                             )).center_x().center_y().height(Length::Fill).width(Length::Fill).padding(10)
                         )

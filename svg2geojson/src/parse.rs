@@ -6,12 +6,9 @@ use nom::{
         complete::is_not,
         complete::{tag, take_while_m_n},
     },
-    character::{
-        self,
-        complete::{one_of, space0, space1},
-    },
+    character::complete::{one_of, space0, space1},
     combinator::{map, map_res},
-    multi::many1,
+    multi::{many1, separated_list1},
     number::complete::float,
     sequence::{delimited, separated_pair, tuple},
     IResult,
@@ -61,7 +58,10 @@ pub fn parse_hex_rgb(input: &str) -> IResult<&str, RGB> {
 
 #[derive(Debug)]
 pub enum Operation {
+    RelVerticalLineTo(f32),
     VerticalLineTo(f32),
+    HorizontalLineTo(f32),
+    RelHorizontalLineTo(f32),
     RelMoveTo(Vector<f32>),
     MoveTo(Point<f32>), // moveto
     RelLineTo(Vector<f32>),
@@ -86,88 +86,106 @@ pub enum Operation {
         flags: ArcFlags,
         to: Point<f32>,
     },
+    CubicBezierTo {
+        ctrl1: Point<f32>,
+        ctrl2: Point<f32>,
+        to: Point<f32>,
+    },
+    RelCubicBezierTo {
+        ctrl1: Vector<f32>,
+        ctrl2: Vector<f32>,
+        to: Vector<f32>,
+    },
     Close,
 }
 
-pub fn path_to_operations(svg: &str) -> IResult<&str, Vec<Operation>> {
+pub fn path_to_operations(svg: &str) -> IResult<&str, Vec<Vec<Operation>>> {
     many1(parse_op)(svg)
 }
 
-pub(crate) fn parse_op(s: &str) -> nom::IResult<&str, Operation> {
-    let (s, op) = one_of("MLHVCSQTAZVHmqla")(s)?;
+pub(crate) fn parse_op(s: &str) -> nom::IResult<&str, Vec<Operation>> {
+    let (s, op) = one_of("vVhHmMlLzZqQaAcC")(s)?;
     let (s, _) = space0(s)?;
 
     let (s, operation) = match op {
-        'V' => {
-            let (s, mv) = readf32(s)?;
-            (s, Operation::VerticalLineTo(mv))   
-        }
-        'm' => {
-            let (s, mv) = read_vector(s)?;
-            (s, Operation::RelMoveTo(mv))
-        }
+        'v' => separated_list1(space1, map(readf32, Operation::RelVerticalLineTo))(s)?,
+        'V' => separated_list1(space1, map(readf32, Operation::VerticalLineTo))(s)?,
+        'h' => many1(map(readf32, Operation::RelHorizontalLineTo))(s)?,
+        'H' => many1(map(readf32, Operation::HorizontalLineTo))(s)?,
+        'm' => separated_list1(space1, map(read_vector, Operation::RelMoveTo))(s)?,
 
-        'M' => {
-            let (s, point) = read_point(s)?;
-            (s, Operation::MoveTo(point))
-        }
-        'l' => {
-            let (s, mv) = read_vector(s)?;
-            (s, Operation::RelLineTo(mv))
-        }
-        'L' => {
-            let (s, point) = read_point(s)?;
-            (s, Operation::LineTo(point))
-        }
-        'Z' => (s, Operation::Close),
-        'q' => {
-            let (s, ctrl) = read_vector(s)?;
-            let (s, _) = space1(s)?;
-            let (s, to) = read_vector(s)?;
-            (s, Operation::RelQuadBezierTo { ctrl, to })
-        }
-        'Q' => {
-            let (s, ctrl) = read_point(s)?;
-            let (s, _) = space1(s)?;
-            let (s, to) = read_point(s)?;
-            (s, Operation::QuadBezierTo { ctrl, to })
-        }
-        'a' => {
-            let (s, radii) = read_vector(s)?;
-            let (s, _) = space1(s)?;
-            let (s, x_rotation) = read_angle(s)?;
-            let (s, _) = space1(s)?;
-            let (s, flags) = read_arcflags(s)?;
-            let (s, _) = space1(s)?;
-            let (s, to) = read_vector(s)?;
-            (
-                s,
-                Operation::RelArcTo {
+        'M' => separated_list1(space1, map(read_point, Operation::MoveTo))(s)?,
+        'l' => separated_list1(space1, map(read_vector, Operation::RelLineTo))(s)?,
+        'L' => separated_list1(space1, map(read_point, Operation::LineTo))(s)?,
+        'Z' | 'z' => (s, vec![Operation::Close]),
+        'q' => separated_list1(
+            space1,
+            map(
+                separated_pair(read_vector, space1, read_vector),
+                |(ctrl, to)| Operation::RelQuadBezierTo { ctrl, to },
+            ),
+        )(s)?,
+        'Q' => separated_list1(
+            space1,
+            map(
+                separated_pair(read_point, space1, read_point),
+                |(ctrl, to)| Operation::QuadBezierTo { ctrl, to },
+            ),
+        )(s)?,
+        'a' => separated_list1(
+            space1,
+            map(
+                tuple((
+                    read_vector,
+                    space1,
+                    read_angle,
+                    space1,
+                    read_arcflags,
+                    space1,
+                    read_vector,
+                )),
+                |(radii, _, x_rotation, _, flags, _, to)| Operation::RelArcTo {
                     radii,
                     x_rotation,
                     flags,
                     to,
                 },
-            )
-        }
-        'A' => {
-            let (s, radii) = read_vector(s)?;
-            let (s, _) = space1(s)?;
-            let (s, x_rotation) = read_angle(s)?;
-            let (s, _) = space1(s)?;
-            let (s, flags) = read_arcflags(s)?;
-            let (s, _) = space1(s)?;
-            let (s, to) = read_point(s)?;
-            (
-                s,
-                Operation::ArcTo {
+            ),
+        )(s)?,
+        'A' => separated_list1(
+            space1,
+            map(
+                tuple((
+                    read_vector,
+                    space1,
+                    read_angle,
+                    space1,
+                    read_arcflags,
+                    space1,
+                    read_point,
+                )),
+                |(radii, _, x_rotation, _, flags, _, to)| Operation::ArcTo {
                     radii,
                     x_rotation,
                     flags,
                     to,
                 },
-            )
-        }
+            ),
+        )(s)?,
+        'C' => separated_list1(
+            space1,
+            map(
+                tuple((read_point, space1, read_point, space1, read_point)),
+                |(ctrl1, _, ctrl2, _, to)| Operation::CubicBezierTo { ctrl1, ctrl2, to },
+            ),
+        )(s)?,
+        'c' => separated_list1(
+            space1,
+            map(
+                tuple((read_vector, space1, read_vector, space1, read_vector)),
+                |(ctrl1, _, ctrl2, _, to)| Operation::RelCubicBezierTo { ctrl1, ctrl2, to },
+            ),
+        )(s)?,
         a => todo!("'{a}' not implemented, rest: {s}"),
     };
     let (s, _) = space0(s)?;

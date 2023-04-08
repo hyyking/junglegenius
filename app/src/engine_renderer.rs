@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use iced::widget::canvas::Program;
 
 use crate::message::{LayoutMessage, Message};
@@ -31,15 +33,35 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(60)),
         );
 
-        let file = std::fs::File::open("navmesh.json").unwrap();
+        let file = std::fs::File::open("map2.json").unwrap();
         let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
             .unwrap();
-        let navmesh = a
+        dbg!(a.features.len());
+        let navmesh: Vec<geo::Polygon> = a
             .features
             .iter()
-            .map(|f| geo::Polygon::try_from(f.clone()).unwrap())
+            .filter_map(|f| {
+                if let Some(groups) = f.properties.as_ref().and_then(|m| {
+                    m.get("properties")
+                        .and_then(|p| p.as_object().and_then(|g| g.get("groups")))
+                }) {
+                    let groups = groups.as_array().unwrap();
+                    if matches!(
+                        groups.get(0),
+                        Some(geojson::JsonValue::String(a)) if a.deref() == "nav"
+                    ) {
+                        f.geometry
+                            .as_ref()
+                            .and_then(|g| geo::Polygon::try_from(g.clone()).ok())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
             .collect();
-
+        dbg!(navmesh.len());
         Self {
             store,
             engine,
@@ -220,9 +242,9 @@ impl Program<Message> for EngineRenderer {
                     }
                 */
             }
-            /*
+
             for mesh in &self.navmesh {
-                let path = iced::widget::canvas::Path::new(|builder| {
+                /*let path = iced::widget::canvas::Path::new(|builder| {
                     for line in mesh.exterior().lines() {
                         let start = line.start;
                         let end = line.end;
@@ -231,15 +253,36 @@ impl Program<Message> for EngineRenderer {
                         builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
                     }
                 });
-
-                frame.stroke(
+                                frame.stroke(
                     &path,
                     iced::widget::canvas::Stroke::default()
                         .with_width(1.0)
                         .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
                 );
+
+                */
+                for point in mesh.exterior().points() {
+                    frame.fill(
+                        &iced::widget::canvas::Path::circle(
+                            iced::Point::new(point.x() as f32, point.y() as f32),
+                            32.0,
+                        ),
+                        iced::Color::from_rgb8(255, 0, 0),
+                    );
+                }
+
+                for interior in mesh.interiors() {
+                    for point in interior.points() {
+                        frame.fill(
+                            &iced::widget::canvas::Path::circle(
+                                iced::Point::new(point.x() as f32, point.y() as f32),
+                                32.0,
+                            ),
+                            iced::Color::from_rgb8(0, 255, 0),
+                        );
+                    }
+                }
             }
-             */
         });
 
         let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());
