@@ -1,7 +1,7 @@
 use iced::widget::svg::StyleSheet;
 use iced::widget::{Canvas, Svg};
 use iced::{Length, Rectangle, Size};
-use iced_native::layout::{Limits, Node};
+use iced_native::layout::{Node};
 use iced_native::renderer::Renderer;
 use iced_native::widget::{Tree, Widget};
 use iced_native::{layout, Overlay};
@@ -23,9 +23,9 @@ where
     R: Renderer + iced_native::svg::Renderer,
     <R as Renderer>::Theme: StyleSheet,
 {
-    pub fn new(overlay: Canvas<Message, Theme, P>, handle: iced_native::svg::Handle) -> Self {
+    pub fn new(handle: iced_native::svg::Handle, program: P) -> Self {
         Self {
-            overlay,
+            overlay: iced::widget::canvas(program),
             image: iced::widget::svg(handle.clone())
                 .width(Length::Fill)
                 .height(Length::Fill),
@@ -91,19 +91,19 @@ where
         _renderer: &R,
     ) -> Option<iced_native::overlay::Element<'a, WMessage, R>> {
         Some(iced_native::overlay::Element::new(
-            iced_native::Point::ORIGIN,
+            layout.position(),
             Box::new(CanvasOverlay {
                 state,
                 layout: layout.bounds(),
                 canvas: &mut self.overlay,
                 handle: &self.handle,
-                image: &self.image,
+                r: std::marker::PhantomData,
             }),
         ))
     }
 
     fn tag(&self) -> iced_native::widget::tree::Tag {
-        iced_native::widget::tree::Tag::stateless()
+        iced_native::widget::tree::Tag::of::<P::State>()
     }
 }
 
@@ -117,7 +117,7 @@ where
     layout: Rectangle,
     canvas: &'a mut Canvas<Message, Theme, P>,
     handle: &'a iced_native::svg::Handle,
-    image: &'a Svg<R>,
+    r: std::marker::PhantomData<R>,
 }
 
 impl<'a, Message, R, Theme, P> Overlay<Message, R> for CanvasOverlay<'a, R, Message, Theme, P>
@@ -127,34 +127,24 @@ where
     P: iced::widget::canvas::Program<Message, Theme>,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn layout(&self, renderer: &R, bounds: Size, position: iced::Point) -> layout::Node {
-        let layout = <iced::widget::Svg<R> as iced_native::Widget<Message, R>>::layout(
-            &self.image,
-            renderer,
-            &Limits::new(Size::ZERO, self.layout.size()),
-        );
-
-        let mut bounds = layout.bounds();
+    fn layout(&self, renderer: &R, _bounds: Size, mut position: iced::Point) -> layout::Node {
+        let mut bounds = self.layout.size();
 
         let Size { width, height } = renderer.dimensions(&self.handle);
         let image_size = Size::new(width as f32, height as f32);
-        let adjusted_fit = iced::ContentFit::Contain.fit(image_size, bounds.size());
+        let adjusted_fit = iced::ContentFit::Contain.fit(image_size, bounds);
 
         if adjusted_fit.width < bounds.width || adjusted_fit.height < bounds.height {
             let offset = iced::Vector::new(
                 (bounds.width - adjusted_fit.width).max(0.0) / 2.0,
                 (bounds.height - adjusted_fit.height).max(0.0) / 2.0,
             );
-
-            bounds = iced::Rectangle {
-                width: adjusted_fit.width,
-                height: adjusted_fit.height,
-                ..bounds
-            } + offset;
+            position = position + offset;
+            bounds = adjusted_fit;
         }
 
-        let mut node = Node::new(bounds.size());
-        node.move_to(bounds.position());
+        let mut node = Node::new(bounds);
+        node.move_to(position);
         node
     }
 
@@ -166,7 +156,6 @@ where
         layout: iced_native::Layout<'_>,
         cursor_position: iced::Point,
     ) {
-        let bounds = layout.bounds();
         self.canvas.draw(
             &self.state,
             renderer,
@@ -174,7 +163,7 @@ where
             style,
             layout,
             cursor_position,
-            &bounds,
+            &layout.bounds(),
         );
     }
     fn on_event(
@@ -211,6 +200,15 @@ where
     fn is_over(&self, layout: iced_native::Layout<'_>, cursor_position: iced::Point) -> bool {
         layout.bounds().contains(cursor_position)
     }
+
+    fn operate(
+        &mut self,
+        layout: iced_native::Layout<'_>,
+        renderer: &R,
+        operation: &mut dyn iced_native::widget::Operation<Message>,
+    ) {
+        self.canvas.operate(self.state, layout, renderer, operation)
+    }
 }
 
 impl<'a, R, Message: 'a, Theme: 'a, P> From<MapWidget<R, Message, Theme, P>>
@@ -221,7 +219,7 @@ where
     P: iced::widget::canvas::Program<Message, Theme> + 'a,
     Canvas<Message, Theme, P>: iced_native::Widget<Message, R>,
 {
-    fn from(circle: MapWidget<R, Message, Theme, P>) -> Self {
-        Self::new(circle)
+    fn from(widget: MapWidget<R, Message, Theme, P>) -> Self {
+        Self::new(widget)
     }
 }
