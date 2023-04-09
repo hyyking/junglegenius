@@ -280,48 +280,7 @@ impl Program<Message> for EngineRenderer {
                         .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
                 );
             }
-        
-
-            for mesh in &self.map2 {
-                /*let path = iced::widget::canvas::Path::new(|builder| {
-                    for line in mesh.exterior().lines() {
-                        let start = line.start;
-                        let end = line.end;
-
-                        builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
-                        builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
-                    }
-                });
-                                frame.stroke(
-                    &path,
-                    iced::widget::canvas::Stroke::default()
-                        .with_width(1.0)
-                        .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
-                );
-
-                */
-                for point in mesh.exterior().points() {
-                    frame.fill(
-                        &iced::widget::canvas::Path::circle(
-                            iced::Point::new(point.x() as f32, point.y() as f32),
-                            32.0,
-                        ),
-                        iced::Color::from_rgb8(255, 0, 0),
-                    );
-                }
-
-                for interior in mesh.interiors() {
-                    for point in interior.points() {
-                        frame.fill(
-                            &iced::widget::canvas::Path::circle(
-                                iced::Point::new(point.x() as f32, point.y() as f32),
-                                32.0,
-                            ),
-                            iced::Color::from_rgb8(0, 255, 0),
-                        );
-                    }
-                }
-            }
+    
         });
 
         let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());

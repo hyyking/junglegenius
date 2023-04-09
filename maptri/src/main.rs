@@ -1,14 +1,14 @@
 use std::borrow::Borrow;
 
 use geo::{
-    euclidean_distance, Centroid, Contains, ConvexHull, CoordsIter, Intersects, LineString,
-    LinesIter, MultiPolygon, Polygon, Relate, Within,
+    euclidean_distance, Centroid, ConcaveHull, Contains, ConvexHull, CoordsIter, Intersects,
+    LineString, LinesIter, MultiPolygon, Polygon, Relate, Within,
 };
 use geojson::FeatureCollection;
-use rstar::primitives::GeomWithData;
+use rstar::{primitives::GeomWithData, PointDistance};
 use spade::{
-    handles::FixedVertexHandle, ConstrainedDelaunayTriangulation, DelaunayTriangulation, Point2,
-    Triangulation,
+    handles::FixedVertexHandle, ConstrainedDelaunayTriangulation, DelaunayTriangulation,
+    FloatTriangulation, Point2, Triangulation,
 };
 
 pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection {
@@ -16,6 +16,9 @@ pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection
 
     return FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
 }
+
+const REDUNDANCY_RADIUS: f64 = 8.0;
+const CLOSE: f64 = REDUNDANCY_RADIUS * REDUNDANCY_RADIUS;
 
 fn main() {
     let map = load_map("map2.json");
@@ -51,7 +54,9 @@ fn main() {
         let id = feature
             .properties
             .as_ref()
-            .and_then(|p| p.get("id").and_then(|s| s.as_str()));
+            .and_then(|p| p.get("id").and_then(|s| s.as_str()))
+            .unwrap_or_default()
+            .to_string();
 
         if let Some(groups) = groups {
             let mut insert = true;
@@ -73,21 +78,40 @@ fn main() {
             }
 
             if insert && groups.contains(&"nav".to_string()) {
-                dbg!(id);
-
                 for line in poly.lines_iter() {
                     let start = line.start;
                     let end = line.end;
-                    let a = cdt.insert(Point2::new(start.x, start.y)).unwrap();
-                    let b = cdt.insert(Point2::new(end.x, end.y)).unwrap();
 
-                    rstar.insert(GeomWithData::new([start.x, start.y], a));
-                    rstar.insert(GeomWithData::new([end.x, end.y], b));
+                    let a = rstar
+                        .nearest_neighbor_iter_with_distance_2(&[start.x, start.y])
+                        .find(|(_, d)| *d < CLOSE)
+                        .map(|(a, _)| a.data)
+                        .unwrap_or_else(|| {
+                            let a = cdt.insert(Point2::new(start.x, start.y)).unwrap();
+                            rstar.insert(GeomWithData::new([start.x, start.y], a));
+                            a
+                        });
+
+                    let b = rstar
+                        .nearest_neighbor_iter_with_distance_2(&[end.x, end.y])
+                        .find(|(_, d)| *d < CLOSE)
+                        .map(|(a, _)| a.data)
+                        .unwrap_or_else(|| {
+                            let a = cdt.insert(Point2::new(end.x, end.y)).unwrap();
+                            rstar.insert(GeomWithData::new([end.x, end.y], a));
+                            a
+                        });
+
+                    if cdt.can_add_constraint(a, b) {
+                        cdt.add_constraint(a, b);
+                    }
                 }
             }
 
+            
+
             if groups.contains(&"walls".to_string()) {
-                walls.push(poly);
+                walls.push((id, poly));
             }
         }
     }
@@ -98,33 +122,64 @@ fn main() {
         for line in poly.exterior().lines() {
             let start = line.start;
             let end = line.end;
-            let a = cdt.insert(Point2::new(start.x, start.y)).unwrap();
-            let b = cdt.insert(Point2::new(end.x, end.y)).unwrap();
+            let a = rstar
+                .nearest_neighbor_iter_with_distance_2(&[start.x, start.y])
+                .find(|(_, d)| *d < CLOSE)
+                .map(|(a, _)| a.data)
+                .unwrap_or_else(|| {
+                    let a = cdt.insert(Point2::new(start.x, start.y)).unwrap();
+                    rstar.insert(GeomWithData::new([start.x, start.y], a));
+                    a
+                });
 
-            rstar.insert(GeomWithData::new([start.x, start.y], a));
-            rstar.insert(GeomWithData::new([end.x, end.y], b));
+            let b = rstar
+                .nearest_neighbor_iter_with_distance_2(&[end.x, end.y])
+                .find(|(_, d)| *d < CLOSE)
+                .map(|(a, _)| a.data)
+                .unwrap_or_else(|| {
+                    let a = cdt.insert(Point2::new(end.x, end.y)).unwrap();
+                    rstar.insert(GeomWithData::new([end.x, end.y], a));
+                    a
+                });
+
+            if cdt.can_add_constraint(a, b) {
+                cdt.add_constraint(a, b);
+            }
         }
     }
 
-    for poly in &walls {
-        for line in poly
-            .exterior()
-            .lines()
-            .chain(poly.interiors().iter().map(|a| a.lines()).flatten())
-        {
+    for (id, poly) in &walls {
+
+        for line in poly.lines_iter() {
             let start = line.start;
             let end = line.end;
+            let a = rstar
+                .nearest_neighbor_iter_with_distance_2(&[start.x, start.y])
+                .find(|(_, d)| *d < CLOSE)
+                .map(|(a, _)| a.data)
+                .unwrap_or_else(|| {
+                    let a = cdt.insert(Point2::new(start.x, start.y)).unwrap();
+                    rstar.insert(GeomWithData::new([start.x, start.y], a));
+                    a
+                });
 
-            let from = rstar.nearest_neighbor(&[start.x, start.y]).unwrap().data;
-            let to = rstar.nearest_neighbor(&[end.x, end.y]).unwrap().data;
+            let b = rstar
+                .nearest_neighbor_iter_with_distance_2(&[end.x, end.y])
+                .find(|(_, d)| *d < CLOSE)
+                .map(|(a, _)| a.data)
+                .unwrap_or_else(|| {
+                    let a = cdt.insert(Point2::new(end.x, end.y)).unwrap();
+                    rstar.insert(GeomWithData::new([end.x, end.y], a));
+                    a
+                });
 
-            cdt.add_constraint(from, to);
+            if cdt.can_add_constraint(a, b) {
+                cdt.add_constraint(a, b);
+            }
         }
     }
 
     let mut features = vec![];
-
-    let mut removed = 0;
 
     'a: for (i, face) in cdt.inner_faces().enumerate() {
         let [a, b, c] = face.vertices();
@@ -134,13 +189,14 @@ fn main() {
             geo::coord! { x: b.position().x, y: b.position().y },
             geo::coord! { x: c.position().x, y: c.position().y },
         );
-
-        for wall in &walls {
-            if wall.contains(&tri.centroid()) {
-                removed += 1;
-                continue 'a;
-            }
-        }
+        
+                for (_, wall) in &walls {
+                    if wall.contains(&tri.centroid()) {
+        
+                        continue 'a;
+                    }
+                }
+        
 
         features.push(geojson::Feature {
             id: Some(geojson::feature::Id::String(format!("{i}"))),
@@ -151,7 +207,11 @@ fn main() {
         });
     }
 
-    println!("{} walls removed {} triangles out of {}", walls.len(), removed, cdt.inner_faces().count());
+    println!(
+        "{} constraints, {} triangles",
+        cdt.num_constraints(),
+        cdt.inner_faces().count()
+    );
     let mut f = std::fs::File::create("navmesh.json").unwrap();
     geojson::ser::to_feature_collection_writer(&mut f, &features).unwrap();
 }
