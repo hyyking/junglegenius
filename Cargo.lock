@@ -1426,6 +1426,7 @@ version = "0.1.0"
 dependencies = [
  "geo",
  "geojson",
+ "rstar",
  "spade",
  "svg2geojson",
 ]

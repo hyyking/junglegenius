@@ -10,6 +10,7 @@ svg2geojson = {path = "../svg2geojson"}
 geojson = {version = "0.24", features=["geo-types"]}
 geo = {version = "0.24"}
 spade = {version = "2.1"}
+rstar = {version = "0.10"}
 
 [build-dependencies]
 svg2geojson = {path = "../svg2geojson"}

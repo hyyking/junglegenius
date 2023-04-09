@@ -15,7 +15,8 @@ pub struct EngineRenderer {
     pub store: EntityStore,
     pub engine: MinimapEngine,
     current_frame: iced::widget::canvas::Cache,
-    navmesh: Vec<geo::Polygon>,
+    map2: Vec<geo::Polygon>,
+    nav: Vec<geo::Polygon>,
 }
 
 impl EngineRenderer {
@@ -37,7 +38,7 @@ impl EngineRenderer {
         let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
             .unwrap();
         dbg!(a.features.len());
-        let navmesh: Vec<geo::Polygon> = a
+        let map2: Vec<geo::Polygon> = a
             .features
             .iter()
             .filter_map(|f| {
@@ -61,12 +62,31 @@ impl EngineRenderer {
                 }
             })
             .collect();
-        dbg!(navmesh.len());
+        
+        
+        let file = std::fs::File::open("navmesh.json").unwrap();
+        let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
+            .unwrap();
+        dbg!(a.features.len());
+
+        let nav: Vec<geo::Polygon> = a
+            .features
+            .iter()
+            .filter_map(|f| {
+                f.geometry
+                            .as_ref()
+                            .and_then(|g| geo::Polygon::try_from(g.clone()).ok())
+            })
+            .collect();
+
+
+
         Self {
             store,
             engine,
             current_frame: iced::widget::canvas::Cache::new(),
-            navmesh,
+            map2,
+            nav,
         }
     }
 
@@ -243,7 +263,26 @@ impl Program<Message> for EngineRenderer {
                 */
             }
 
-            for mesh in &self.navmesh {
+            for mesh in &self.nav {
+                let path = iced::widget::canvas::Path::new(|builder| {
+                    for line in mesh.exterior().lines() {
+                        let start = line.start;
+                        let end = line.end;
+
+                        builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
+                        builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
+                    }
+                });
+                                frame.stroke(
+                    &path,
+                    iced::widget::canvas::Stroke::default()
+                        .with_width(1.0)
+                        .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
+                );
+            }
+        
+
+            for mesh in &self.map2 {
                 /*let path = iced::widget::canvas::Path::new(|builder| {
                     for line in mesh.exterior().lines() {
                         let start = line.start;
