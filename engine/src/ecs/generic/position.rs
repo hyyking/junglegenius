@@ -5,7 +5,7 @@ pub struct PositionComponent {
 }
 
 impl rstar::RTreeObject for PositionComponent {
-    type Envelope = oobb::OOBB;
+    type Envelope = oobb::OOBB<f32>;
 
     fn envelope(&self) -> Self::Envelope {
         let [x, y] = self.point.to_array();

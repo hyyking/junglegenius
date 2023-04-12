@@ -62,8 +62,7 @@ impl EngineRenderer {
                 }
             })
             .collect();
-        
-        
+
         let file = std::fs::File::open("navmesh.json").unwrap();
         let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
             .unwrap();
@@ -74,12 +73,10 @@ impl EngineRenderer {
             .iter()
             .filter_map(|f| {
                 f.geometry
-                            .as_ref()
-                            .and_then(|g| geo::Polygon::try_from(g.clone()).ok())
+                    .as_ref()
+                    .and_then(|g| geo::Polygon::try_from(g.clone()).ok())
             })
             .collect();
-
-
 
         Self {
             store,
@@ -263,7 +260,28 @@ impl Program<Message> for EngineRenderer {
                 */
             }
 
-            for mesh in &self.nav {
+            let navc = self.nav.len() as f32;
+
+            for (i, mesh) in self.nav.iter().enumerate() {
+                let linec = mesh.exterior().lines().count() as f32;
+                for (j, line) in mesh.exterior().lines().enumerate() {
+                    let start = line.start;
+                    let end = line.end;
+
+                    frame.stroke(
+                        &iced::widget::canvas::Path::line(
+                            iced::Point::new(start.x as f32, start.y as f32),
+                            iced::Point::new(end.x as f32, end.y as f32),
+                        ),
+                        iced::widget::canvas::Stroke::default().with_color(iced::Color::from_rgb(
+                            1.0,
+                            (j as f32 / linec),
+                            (i as f32 / navc),
+                        )).with_width(1.0),
+                    )
+                }
+                continue;
+
                 let path = iced::widget::canvas::Path::new(|builder| {
                     for line in mesh.exterior().lines() {
                         let start = line.start;
@@ -273,14 +291,13 @@ impl Program<Message> for EngineRenderer {
                         builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
                     }
                 });
-                                frame.stroke(
+                frame.stroke(
                     &path,
                     iced::widget::canvas::Stroke::default()
                         .with_width(1.0)
                         .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
                 );
             }
-    
         });
 
         let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());

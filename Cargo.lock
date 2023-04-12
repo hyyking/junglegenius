@@ -1426,6 +1426,9 @@ version = "0.1.0"
 dependencies = [
  "geo",
  "geojson",
+ "num-traits",
+ "oobb",
+ "rayon",
  "rstar",
  "spade",
  "svg2geojson",
@@ -1737,6 +1740,7 @@ name = "oobb"
 version = "0.1.0"
 dependencies = [
  "geo",
+ "num-traits",
  "rstar",
 ]
 
@@ -2327,9 +2331,8 @@ dependencies = [
 
 [[package]]
 name = "spade"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1190e0e8f4eb17fc3dbb2d20e1142676e56aaac3daede39f64a3302d687b80f3"
+version = "2.0.0"
+source = "git+https://github.com/Stoeoef/spade.git?branch=delaunay_refinement#b2955111f8ea35b67acb7d89eb67546f016a18d8"
 dependencies = [
  "num-traits",
  "optional",

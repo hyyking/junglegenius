@@ -34,6 +34,9 @@ impl PathSampler for PointSampler {
             interval: self.rate,
         };
         lyon_algorithms::walk::walk_along_path(&path, 0.0, 0.1, &mut pattern);
+        if samples.len() > 1 {
+            samples.push(samples[0].clone());
+        }
         samples
     }
 }

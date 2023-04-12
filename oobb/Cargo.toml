@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rstar = {version = "0.10"}
 geo = {version = "0.24"}
+num-traits = {version="0.2"}

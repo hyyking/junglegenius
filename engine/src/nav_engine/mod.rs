@@ -12,7 +12,7 @@ pub enum CollisionBox {
 }
 
 impl rstar::RTreeObject for CollisionBox {
-    type Envelope = oobb::OOBB;
+    type Envelope = oobb::OOBB<f32>;
 
     fn envelope(&self) -> Self::Envelope {
         match self {
