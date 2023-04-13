@@ -1,5 +1,7 @@
 use std::ops::Deref;
 
+use geo::LinesIter;
+use geojson::JsonValue;
 use iced::widget::canvas::Program;
 
 use crate::message::{LayoutMessage, Message};
@@ -42,9 +44,16 @@ impl EngineRenderer {
             .features
             .iter()
             .filter_map(|f| {
+                
                 if let Some(groups) = f.properties.as_ref().and_then(|m| {
-                    m.get("properties")
-                        .and_then(|p| p.as_object().and_then(|g| g.get("groups")))
+                    let id = m.get("id").and_then(JsonValue::as_str)?;
+                    let props = m.get("properties").and_then(JsonValue::as_object)?;
+                    props
+                        .get(id)
+                        .or(props.get("exterior"))
+                        .and_then(JsonValue::as_object)
+                        .and_then(|m| m.get("groups"))
+                        
                 }) {
                     let groups = groups.as_array().unwrap();
                     if matches!(
@@ -259,12 +268,32 @@ impl Program<Message> for EngineRenderer {
                     }
                 */
             }
+            /*
+                        let navc = self.nav.len() as f32;
 
-            let navc = self.nav.len() as f32;
+                        for (i, mesh) in self.nav.iter().enumerate() {
+                            let linec = mesh.exterior().lines().count() as f32;
+                            for (j, line) in mesh.exterior().lines().enumerate() {
+                                let start = line.start;
+                                let end = line.end;
 
-            for (i, mesh) in self.nav.iter().enumerate() {
-                let linec = mesh.exterior().lines().count() as f32;
-                for (j, line) in mesh.exterior().lines().enumerate() {
+                                frame.stroke(
+                                    &iced::widget::canvas::Path::line(
+                                        iced::Point::new(start.x as f32, start.y as f32),
+                                        iced::Point::new(end.x as f32, end.y as f32),
+                                    ),
+                                    iced::widget::canvas::Stroke::default().with_color(iced::Color::from_rgb(
+                                        1.0,
+                                        j as f32 / linec,
+                                        i as f32 / navc,
+                                    )).with_width(1.0),
+                                )
+                            }
+
+                        }
+            */
+            for mesh in &self.map2 {
+                for line in mesh.lines_iter() {
                     let start = line.start;
                     let end = line.end;
 
@@ -273,30 +302,11 @@ impl Program<Message> for EngineRenderer {
                             iced::Point::new(start.x as f32, start.y as f32),
                             iced::Point::new(end.x as f32, end.y as f32),
                         ),
-                        iced::widget::canvas::Stroke::default().with_color(iced::Color::from_rgb(
-                            1.0,
-                            (j as f32 / linec),
-                            (i as f32 / navc),
-                        )).with_width(1.0),
+                        iced::widget::canvas::Stroke::default()
+                            .with_color(iced::Color::from_rgb(1.0, 0.0, 0.0))
+                            .with_width(3.0),
                     )
                 }
-                continue;
-
-                let path = iced::widget::canvas::Path::new(|builder| {
-                    for line in mesh.exterior().lines() {
-                        let start = line.start;
-                        let end = line.end;
-
-                        builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
-                        builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
-                    }
-                });
-                frame.stroke(
-                    &path,
-                    iced::widget::canvas::Stroke::default()
-                        .with_width(1.0)
-                        .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
-                );
             }
         });
 

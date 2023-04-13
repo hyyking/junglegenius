@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use geo::{LineString, Polygon};
+use geo::{Polygon};
 use geojson::FeatureCollection;
 
 use crate::{

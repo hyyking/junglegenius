@@ -1,3 +1,4 @@
 /target
 **/map.json
 map*.json
+*.flat

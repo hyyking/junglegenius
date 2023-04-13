@@ -1,4 +1,4 @@
-use std::num;
+
 
 use geo::{
     Area, BoundingRect, Centroid, Contains, EuclideanDistance, EuclideanLength, Intersects,

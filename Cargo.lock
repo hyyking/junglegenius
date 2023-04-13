@@ -578,12 +578,12 @@ dependencies = [
  "fastrand",
  "geo",
  "geojson",
+ "libmap",
  "lyon",
  "oobb",
  "pathfinding",
  "rstar",
  "slab",
- "svg2geojson",
 ]
 
 [[package]]
@@ -647,6 +647,19 @@ checksum = "a8a2db397cb1c8772f31494cb8917e48cd1e64f0fa7efac59fbd741a0a8ce841"
 dependencies = [
  "crc32fast",
  "miniz_oxide",
+]
+
+[[package]]
+name = "flexbuffers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "15d14128f06405808ce75bfebe11e9b0f9da18719ede6d7bdb1702d6bfe0f7e8"
+dependencies = [
+ "bitflags",
+ "byteorder",
+ "num_enum",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
@@ -1335,6 +1348,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
 
 [[package]]
+name = "libmap"
+version = "0.1.0"
+dependencies = [
+ "geojson",
+ "lyon_algorithms",
+ "lyon_geom",
+ "lyon_path",
+ "nom",
+ "serde",
+ "serde_json",
+ "svg",
+]
+
+[[package]]
 name = "linked-hash-map"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1424,14 +1451,16 @@ dependencies = [
 name = "maptri"
 version = "0.1.0"
 dependencies = [
+ "flexbuffers",
  "geo",
  "geojson",
+ "libmap",
  "num-traits",
  "oobb",
  "rayon",
  "rstar",
+ "serde",
  "spade",
- "svg2geojson",
 ]
 
 [[package]]
@@ -1749,6 +1778,9 @@ name = "optional"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "978aa494585d3ca4ad74929863093e87cac9790d81fe7aba2b3dc2890643a0fc"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "ordered-float"
@@ -2337,6 +2369,7 @@ dependencies = [
  "num-traits",
  "optional",
  "robust",
+ "serde",
  "smallvec",
 ]
 
@@ -2388,18 +2421,6 @@ name = "svg"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02d815ad337e8449d2374d4248448645edfe74e699343dd5719139d93fa87112"
-
-[[package]]
-name = "svg2geojson"
-version = "0.1.0"
-dependencies = [
- "geojson",
- "lyon_algorithms",
- "lyon_geom",
- "lyon_path",
- "nom",
- "svg",
-]
 
 [[package]]
 name = "svg_fmt"

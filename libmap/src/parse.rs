@@ -13,8 +13,9 @@ use nom::{
     sequence::{delimited, separated_pair, tuple},
     IResult,
 };
+use serde::{Serialize, Deserialize};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,
