@@ -7,6 +7,7 @@ pub trait PathSampler {
 
     fn sample(&self, path: Path) -> Self::Sample;
 }
+
 pub struct IdSampler;
 impl PathSampler for IdSampler {
     type Sample = Path;

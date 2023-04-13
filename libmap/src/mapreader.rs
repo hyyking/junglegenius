@@ -1,72 +1,60 @@
 use std::{collections::HashMap, ops::Deref};
 
 use lyon_path::Path;
-use svg::Parser;
 
-use crate::{
-    build_path,
-    sampler::{IdSampler, PathSampler},
-    Error,
-};
+use crate::{build_path, sampler::PathSampler, Error, Pipe};
 
-pub struct SvgMapReader<'a, S = IdSampler>
-where
-    S: PathSampler,
-{
-    parser: Parser<'a>,
-    sampler: S,
-}
-
-impl<'a> SvgMapReader<'a, IdSampler> {
-    pub fn open(
-        path: impl AsRef<std::path::Path>,
-        buff: &'a mut String,
-    ) -> Result<Self, std::io::Error> {
-        svg::open(path.as_ref(), buff).map(|parser| Self {
-            parser,
-            sampler: IdSampler,
-        })
-    }
-}
-impl<'a, S> SvgMapReader<'a, S>
-where
-    S: PathSampler,
-{
-    pub fn open_with(
-        path: impl AsRef<std::path::Path>,
-        sampler: S,
-        buff: &'a mut String,
-    ) -> Result<Self, std::io::Error> {
-        svg::open(path.as_ref(), buff).map(|parser| Self { parser, sampler })
-    }
-}
-
-pub enum MapOperation<S: PathSampler> {
+pub enum MapOperation<S> {
     StartNewGroup(String),
-    NewPath(S::Sample, HashMap<String, svg::node::Value>),
+    NewPath(S, HashMap<String, svg::node::Value>),
     EndNewGroup,
     NotSupported,
 }
 
-impl<S> Iterator for SvgMapReader<'_, S>
+
+impl<S> Pipe for S
 where
     S: PathSampler,
 {
-    type Item = MapOperation<S>;
+    type Input = MapOperation<lyon_path::Path>;
+    type Output = MapOperation<S::Sample>;
+    type Error = Error;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.parser.next().map(|event| match event {
+    fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        Ok(Some(match input {
+            MapOperation::NewPath(path, attrs) => MapOperation::NewPath(self.sample(path), attrs),
+            MapOperation::StartNewGroup(g) => MapOperation::StartNewGroup(g),
+            MapOperation::EndNewGroup => MapOperation::EndNewGroup,
+            MapOperation::NotSupported => MapOperation::NotSupported,
+        }))
+    }
+}
+
+#[derive(Default)]
+pub struct SvgMapReader<'a>(std::marker::PhantomData<&'a ()>);
+
+impl<'a> Pipe for SvgMapReader<'a>
+where
+    Self: 'a,
+{
+    type Input = svg::parser::Event<'a>;
+    type Output = MapOperation<lyon_path::Path>;
+
+    type Error = Error;
+
+    fn process(&mut self, event: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        match event {
             svg::parser::Event::Tag("g", svg::node::element::tag::Type::Start, attrs) => {
-                MapOperation::StartNewGroup(
+                Ok(Some(MapOperation::StartNewGroup(
                     attrs
                         .get("inkscape:label")
                         .or(attrs.get("id"))
                         .unwrap()
                         .to_string(),
-                )
+                )))
             }
             svg::parser::Event::Tag("g", svg::node::element::tag::Type::End, _) => {
-                MapOperation::EndNewGroup
+                Ok(Some(MapOperation::EndNewGroup))
             }
             svg::parser::Event::Tag("path", _, attrs) => {
                 let v = attrs.get("d").ok_or(Error::GetPath).unwrap().deref();
@@ -78,9 +66,9 @@ where
                     )),
                 )
                 .unwrap();
-                MapOperation::NewPath(self.sampler.sample(path), attrs)
+                Ok(Some(MapOperation::NewPath(path, attrs)))
             }
-            _ => MapOperation::NotSupported,
-        })
+            _ => Ok(Some(MapOperation::NotSupported)),
+        }
     }
 }

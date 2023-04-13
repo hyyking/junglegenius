@@ -15,7 +15,7 @@ use nom::{
 };
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RGB {
     pub r: u8,
     pub g: u8,

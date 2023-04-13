@@ -1,4 +1,4 @@
-use svg2geojson::sampler::PointSampler;
+use libmap::sampler::PointSampler;
 
 fn main() {
     println!("cargo:rerun-if-changed=../map.svg");
