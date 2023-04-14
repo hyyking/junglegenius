@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use geo::LinesIter;
 use geojson::JsonValue;
 use iced::widget::canvas::Program;
 
@@ -268,7 +267,7 @@ impl Program<Message> for EngineRenderer {
                     }
                 */
             }
-            /*
+            
                         let navc = self.nav.len() as f32;
 
                         for (i, mesh) in self.nav.iter().enumerate() {
@@ -291,7 +290,8 @@ impl Program<Message> for EngineRenderer {
                             }
 
                         }
-            */
+            
+            /*
             for mesh in &self.map2 {
                 for line in mesh.lines_iter() {
                     let start = line.start;
@@ -307,7 +307,7 @@ impl Program<Message> for EngineRenderer {
                             .with_width(3.0),
                     )
                 }
-            }
+            } */
         });
 
         let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());

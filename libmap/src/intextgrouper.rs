@@ -4,9 +4,9 @@ use geojson::Feature;
 use svg::node;
 
 use crate::{
-    mapreader::MapOperation,
+    mapreader::SvgOperation,
     parse::{self, RGB},
-    Pipe,
+    pipe::Pipe,
 };
 
 #[derive(Debug)]
@@ -68,14 +68,14 @@ pub struct SampleProperties {
 }
 
 impl<S> Pipe for IntExtGrouper<S> {
-    type Input = MapOperation<S>;
+    type Input = SvgOperation<S>;
     type Output = PolySample<S>;
 
     type Error = crate::Error;
 
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         match input {
-            MapOperation::StartNewGroup(id) => {
+            SvgOperation::StartNewGroup(id) => {
                 self.current_groups.push(id.clone());
                 if id.as_str() == "interior" {
                     self.state.push(AppendMode::AppendInterior);
@@ -88,7 +88,7 @@ impl<S> Pipe for IntExtGrouper<S> {
                 Ok(None)
             }
 
-            MapOperation::NewPath(samples, attrs) => {
+            SvgOperation::NewPath(samples, attrs) => {
                 let id = attrs.get("id").map(ToString::to_string).unwrap_or_default();
 
                 fn fill(fill: &node::Value) -> Option<RGB> {
@@ -127,11 +127,12 @@ impl<S> Pipe for IntExtGrouper<S> {
                 }
                 Ok(None)
             }
-            MapOperation::EndNewGroup => {
-                let _ = self.current_groups.pop();
-
+            SvgOperation::EndNewGroup => {
                 use AppendMode::AppendExterior as E;
                 use AppendMode::AppendInterior as I;
+
+                let _ = self.current_groups.pop();
+
                 let last_two = [
                     self.state.len().saturating_sub(2),
                     self.state.len().saturating_sub(1),
@@ -149,7 +150,7 @@ impl<S> Pipe for IntExtGrouper<S> {
                 }
                 Ok(None)
             }
-            MapOperation::NotSupported => Ok(None),
+            SvgOperation::NotSupported => Ok(None),
         }
     }
 }

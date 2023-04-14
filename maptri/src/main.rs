@@ -3,11 +3,14 @@
 use std::{borrow::Borrow, collections::HashSet, io::Write};
 
 use geo::{
-    ClosestPoint, ConvexHull, CoordsIter, EuclideanDistance, Extremes, LineString, Point, Polygon,
+    ClosestPoint, ConvexHull, CoordsIter, Extremes, LineString, Point, Polygon,
     RemoveRepeatedPoints,
 };
 use geojson::{FeatureCollection, Geometry};
-use maptri::cvt::{poly_from_voronoi_face, CentralVoronoiTesselation};
+use maptri::{
+    cvt::{poly_from_voronoi_face, CentralVoronoiTesselation},
+    wall::Wall,
+};
 use rstar::{primitives::GeomWithData, PointDistance};
 use spade::{ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation};
 
@@ -17,24 +20,6 @@ pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection
     return FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
 }
 use rayon::prelude::*;
-
-struct Wall(geo::Polygon, String);
-impl PointDistance for Wall {
-    fn distance_2(
-        &self,
-        point: &<Self::Envelope as rstar::Envelope>::Point,
-    ) -> <<Self::Envelope as rstar::Envelope>::Point as rstar::Point>::Scalar {
-        self.0
-            .euclidean_distance(&geo::point! {x: point[0], y: point[1]})
-    }
-}
-impl rstar::RTreeObject for Wall {
-    type Envelope = oobb::OOBB<f64>;
-
-    fn envelope(&self) -> Self::Envelope {
-        oobb::OOBB::from_polygon(self.0.clone())
-    }
-}
 
 struct NavMapTriangulation {
     walls: rstar::RTree<Wall>,
@@ -115,15 +100,14 @@ impl NavMapTriangulation {
         let mut cdt = spade::ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
         let mut points = rstar::RTree::new();
         /*
-        for &[x, y] in self.nav.iter() {
-            if x == 0.0 || y == 0.0 || x == 14930.0 || y == 14930.0 {
-                continue;
-            }
-            let p = spade::mitigate_underflow(Point2::new(x, y));
-            points.insert(GeomWithData::new([p.x, p.y], cdt.insert(p).unwrap()));
-        }
-         */
-
+               for &[x, y] in self.nav.iter() {
+                   if x == 0.0 || y == 0.0 || x == 14930.0 || y == 14930.0 {
+                       continue;
+                   }
+                   let p = spade::mitigate_underflow(Point2::new(x, y));
+                   points.insert(GeomWithData::new([p.x, p.y], cdt.insert(p).unwrap()));
+               }
+        */
         if let Some(Wall(top_left, _)) = self.walls.locate_at_point(&[0.0, 0.0]) {
             let rect = top_left.extremes().unwrap();
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
@@ -201,7 +185,7 @@ impl NavMapTriangulation {
 
         self.walls
             .iter()
-            .filter(|Wall(_, id)| id != "bot_bound" && id != "top_bound")
+            .filter(|Wall(_, id)| dbg!(id) != "bot_bound" && id != "top_bound")
             .map(|Wall(wall, _)| {
                 wall.coords_iter().map(|coord| {
                     spade::mitigate_underflow(Point2::new(
@@ -229,21 +213,17 @@ fn main() {
     let map = load_map("map2.json");
 
     for feature in map.features {
-        let groups = feature
-            .properties
-            .as_ref()
-            .unwrap()
-            .get("properties")
-            .and_then(|p| {
-                p.as_object()
-                    .and_then(|m| m.get("groups").and_then(|v| v.as_array()))
-            })
-            .map(|groups| {
-                groups
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_string())
-                    .collect::<Vec<_>>()
-            });
+        let groups = feature.properties.as_ref().and_then(|m| {
+            let id = m.get("id").and_then(geojson::JsonValue::as_str)?;
+            let props = m
+                .get("properties")
+                .and_then(geojson::JsonValue::as_object)?;
+            props
+                .get(id)
+                .or(props.get("exterior"))
+                .and_then(geojson::JsonValue::as_object)
+                .and_then(|m| m.get("groups"))
+        });
 
         let poly = geo::Polygon::<f64>::try_from(feature.geometry.unwrap()).unwrap();
 
@@ -255,7 +235,11 @@ fn main() {
             .to_string();
 
         if let Some(groups) = groups {
-            if groups.contains(&"walls".to_string()) {
+            let group = groups.as_array().unwrap();
+            if matches!(
+                group.get(0),
+                Some(geojson::JsonValue::String(a)) if std::ops::Deref::deref(&a) == "walls"
+            ) {
                 let new = tri.populate_walls(&poly, id.clone());
                 println!("WALL {id} | {new} vertices simplified");
             }
