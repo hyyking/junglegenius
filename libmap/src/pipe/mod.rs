@@ -3,6 +3,8 @@ mod split;
 pub use chained::ChainedPipe;
 pub use split::{CloneSplit, ConsumeLeft};
 
+use crate::Error;
+
 pub trait Pipe {
     type Input;
     type Output;
@@ -22,9 +24,69 @@ pub trait Pipe {
     fn close(&mut self) {}
 }
 
+#[derive(Debug)]
+pub struct TryCollector<P: Producer , C> {
+    _s: std::marker::PhantomData<(P, C)>,
+}
+
+impl<P: Producer, C> TryCollector<P, C> {
+    pub fn new() -> Self {
+        Self {
+            _s: std::marker::PhantomData,
+        }
+    }
+}
+
+
+impl<O, P, C> Pipe for TryCollector<P, C>
+where
+    P: Producer<Item = Result<O, Error>>,
+    C: FromIterator<O>,
+{
+    type Input = P;
+
+    type Output = C;
+
+    type Error = Error;
+
+    fn process(&mut self, mut input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        Result::<C, Self::Error>::from_iter(std::iter::from_fn(|| input.produce())).map(Some)
+    }
+}
+
+#[derive(Debug)]
+pub struct OwnedProducer<P: Producer>(Option<P>);
+
+impl<P: Producer> Pipe for OwnedProducer<P> {
+    type Input = ();
+
+    type Output = P;
+
+    type Error = Error;
+
+    fn process(&mut self, _: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        Ok(self.0.take())
+    }
+}
+
+impl<T: Producer> Producer for OwnedProducer<T> {
+    type Item = T;
+
+    fn produce(&mut self) -> Option<Self::Item> {
+        self.0.take()
+    }
+}
+
 pub trait Producer {
     type Item;
     fn produce(&mut self) -> Option<Self::Item>;
+
+    fn producer(self) -> OwnedProducer<Self>
+    where
+        Self: Sized,
+    {
+        OwnedProducer(Some(self))
+    }
 
     fn feed<P>(self, other: P) -> ChainedPipe<Self, P, Self::Item, P::Error>
     where

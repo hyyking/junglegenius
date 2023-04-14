@@ -1,6 +1,9 @@
-use num_traits::{FromPrimitive, Float};
+use geo::GeoFloat;
+use num_traits::{Float, FromPrimitive};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use spade::{ConstrainedDelaunayTriangulation, Point2, InsertionError, handles::VoronoiFace, Triangulation};
+use spade::{
+    handles::VoronoiFace, ConstrainedDelaunayTriangulation, InsertionError, Point2, Triangulation,
+};
 
 pub trait CentralVoronoiTesselation {
     fn cvt_lloyds_algorithm(self, max_distance2: f64) -> Result<Self, ()>
@@ -10,8 +13,6 @@ pub trait CentralVoronoiTesselation {
 
 impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>> {
     fn cvt_lloyds_algorithm(mut self, max_distance2: f64) -> Result<Self, ()> {
-        let mut prev_max_move = 0.0;
-
         loop {
             #[derive(Clone)]
             struct NoneCenteredCellsFold {
@@ -24,9 +25,8 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
             let non_centered = vertices
                 .into_par_iter()
                 .map(|v| -> Result<(Point2<f64>, Point2<f64>, f64), ()> {
-                    let centroid = poly_from_voronoi_face(v.as_voronoi_face())
-                        .and_then(|p| geo::Centroid::centroid(&p).ok_or(()))
-                        .map(|c| Point2::new(c.x(), c.y()))?;
+                    let centroid = get_centroid(v.as_voronoi_face());
+
                     let vertex = v.data().clone();
                     let distance = vertex.distance_2(centroid);
                     Ok((vertex, centroid, distance))
@@ -64,7 +64,7 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
                     },
                 )?;
 
-            if non_centered.vertex.is_empty() || prev_max_move == non_centered.max_move {
+            if non_centered.vertex.is_empty() {
                 break Ok(self);
             }
 
@@ -75,9 +75,7 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
             );
 
             let NoneCenteredCellsFold {
-                vertex,
-                centroid,
-                max_move,
+                vertex, centroid, ..
             } = non_centered;
 
             vertex
@@ -95,13 +93,21 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
                     Ok::<(), InsertionError>(())
                 })
                 .map_err(|_| ())?;
-
-            prev_max_move = max_move;
         }
     }
 }
 
-
+pub fn get_centroid<DE, UE, F, T>(face: VoronoiFace<'_, T, DE, UE, F>) -> Point2<T::Scalar>
+where
+    T: spade::HasPosition,
+    <T as spade::HasPosition>::Scalar:
+        spade::SpadeNum + num_traits::float::Float + PartialOrd + FromPrimitive + GeoFloat,
+{
+    poly_from_voronoi_face(face)
+        .and_then(|p| geo::Centroid::centroid(&p).ok_or(()))
+        .map(|c| Point2::new(c.x(), c.y()))
+        .unwrap()
+}
 
 pub fn poly_from_voronoi_face<DE, UE, F, T>(
     face: VoronoiFace<'_, T, DE, UE, F>,

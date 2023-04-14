@@ -1,7 +1,7 @@
 use lyon_algorithms::walk::{RegularPattern, WalkerEvent};
 use lyon_path::Path;
 
-use crate::{mapreader::SvgOperation, Error};
+use crate::{svg::SvgOperation, Error};
 
 
 pub trait PathSampler {

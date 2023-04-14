@@ -1,5 +1,6 @@
 use super::{Pipe, Producer};
 
+#[derive(Debug)]
 pub struct ChainedPipe<I, O, Shared, Error> {
     input: I,
     output: O,

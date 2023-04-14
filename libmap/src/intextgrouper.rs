@@ -1,13 +1,8 @@
 use std::collections::HashMap;
 
 use geojson::Feature;
-use svg::node;
 
-use crate::{
-    mapreader::SvgOperation,
-    parse::{self, RGB},
-    pipe::Pipe,
-};
+use crate::{pipe::Pipe, svg::parse::RGB, svg::SvgOperation};
 
 #[derive(Debug)]
 pub enum AppendMode {
@@ -15,7 +10,7 @@ pub enum AppendMode {
     AppendExterior,
     AppendInterior,
 }
-
+#[derive(Debug)]
 pub struct IntExtGrouper<S> {
     state: Vec<AppendMode>,
     current_id: String,
@@ -36,7 +31,7 @@ impl<S> IntExtGrouper<S> {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct PolySample<S> {
     pub id: String,
     pub poly: Vec<S>,
@@ -61,7 +56,7 @@ impl From<PolySample<Vec<Vec<f64>>>> for Feature {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct SampleProperties {
     groups: Vec<String>,
     fill: Option<RGB>,
@@ -76,6 +71,7 @@ impl<S> Pipe for IntExtGrouper<S> {
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         match input {
             SvgOperation::StartNewGroup(id) => {
+                trace!("new group: {id}");
                 self.current_groups.push(id.clone());
                 if id.as_str() == "interior" {
                     self.state.push(AppendMode::AppendInterior);
@@ -91,9 +87,12 @@ impl<S> Pipe for IntExtGrouper<S> {
             SvgOperation::NewPath(samples, attrs) => {
                 let id = attrs.get("id").map(ToString::to_string).unwrap_or_default();
 
-                fn fill(fill: &node::Value) -> Option<RGB> {
-                    let (_, rgb) =
-                        nom::branch::alt((parse::parse_rgb, parse::parse_hex_rgb))(fill).ok()?;
+                fn fill(fill: &svg::node::Value) -> Option<RGB> {
+                    let (_, rgb) = nom::branch::alt((
+                        crate::svg::parse::parse_rgb,
+                        crate::svg::parse::parse_hex_rgb,
+                    ))(fill)
+                    .ok()?;
                     Some(rgb)
                 }
                 let properties = SampleProperties {
@@ -103,6 +102,7 @@ impl<S> Pipe for IntExtGrouper<S> {
 
                 match self.state.last().ok_or(crate::Error::ParseRGB)? {
                     AppendMode::Direct => {
+                        trace!("new path: {id}");
                         self.current_id = id.clone();
                         self.current_poly = vec![samples];
                         self.current_properties.insert(id, properties);
@@ -115,11 +115,13 @@ impl<S> Pipe for IntExtGrouper<S> {
                         }));
                     }
                     AppendMode::AppendInterior => {
+                        trace!("collecting interior of: {}", self.current_id);
                         self.current_poly.push(samples);
                         self.current_properties
                             .insert("interior".to_string(), properties);
                     }
                     AppendMode::AppendExterior => {
+                        trace!("collecting exterior of: {}", self.current_id);
                         self.current_poly.insert(0, samples);
                         self.current_properties
                             .insert("exterior".to_string(), properties);
@@ -141,6 +143,7 @@ impl<S> Pipe for IntExtGrouper<S> {
                     self.state.pop();
                     self.state.pop();
 
+                    trace!("new path: {}", self.current_id);
                     return Ok(Some(PolySample {
                         id: self.current_id.clone(),
                         poly: self.current_poly.drain(..).collect(),

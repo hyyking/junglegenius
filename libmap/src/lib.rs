@@ -1,19 +1,27 @@
-#![feature(get_many_mut, let_chains, iterator_try_collect)]
+#![feature(
+    get_many_mut,
+    let_chains,
+    iterator_try_collect,
+    try_trait_v2,
+    try_trait_v2_residual
+)]
+
+#[macro_use]
+extern crate tracing;
 
 use std::io::Write;
 
 pub mod intextgrouper;
-pub mod mapreader;
-pub mod parse;
+pub mod svg;
 pub mod pipe;
-pub mod sampler;
 pub mod ser;
+
+use pipe::TryCollector;
 
 use crate::{
     intextgrouper::IntExtGrouper,
-    mapreader::SvgReader,
+    svg::{SvgReader, PointSampler},
     pipe::{CloneSplit, ConsumeLeft, Pipe, Producer},
-    sampler::PointSampler,
 };
 
 #[derive(Debug)]
@@ -32,13 +40,19 @@ pub fn svg2geojson(
 ) -> Result<(), Error> {
     let mut buff = String::with_capacity(4096);
 
-    let mut pipes = svg::open(path, &mut buff).unwrap().feed(
-        SvgReader::default()
-            .pipe(sampler)
-            .pipe(IntExtGrouper::new())
-            .pipe(ser::WriteGeojson::new(output)), // .pipe(CloneSplit::new())
-                                                   // .pipe(ConsumeLeft::new(ser::WriteGeojson::new(output)))
-    );
+    let mut pipes = ::svg::open(path, &mut buff)
+        .unwrap()
+        .feed(
+            SvgReader::default()
+                .pipe(sampler)
+                .pipe(IntExtGrouper::new()),
+        )
+        .producer()
+        .feed(
+            TryCollector::new()
+                .pipe(CloneSplit::new())
+                .pipe(ConsumeLeft::new(ser::WriteGeojson::new(output))),
+        );
 
     Ok(std::iter::from_fn(|| pipes.produce()).for_each(drop))
 }

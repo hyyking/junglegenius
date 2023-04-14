@@ -1,4 +1,4 @@
-use libmap::sampler::PointSampler;
+use libmap::svg::PointSampler;
 
 fn main() {
     println!("cargo:rerun-if-changed=../map.svg");
@@ -7,7 +7,7 @@ fn main() {
 
     let mut result = std::fs::File::create("map.json").unwrap();
     libmap::svg2geojson(
-        "../map2.svg",
+        "../map.svg",
         &mut result,
         PointSampler { rate: 128.0 },
     )

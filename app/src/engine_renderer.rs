@@ -35,7 +35,7 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(60)),
         );
 
-        let file = std::fs::File::open("map2.json").unwrap();
+        let file = std::fs::File::open("map.json").unwrap();
         let a = geojson::FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap())
             .unwrap();
         dbg!(a.features.len());

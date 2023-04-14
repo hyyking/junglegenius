@@ -210,7 +210,7 @@ fn main() {
         nav: rstar::RTree::new(),
     };
 
-    let map = load_map("map2.json");
+    let map = load_map("map.json");
 
     for feature in map.features {
         let groups = feature.properties.as_ref().and_then(|m| {

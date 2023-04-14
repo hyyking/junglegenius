@@ -1,8 +1,9 @@
-use libmap::sampler::PointSampler;
-
+use libmap::svg::PointSampler;
+use tracing::Level;
 
 fn main() {
-    let mut result = std::fs::File::create("map2.json").unwrap();
-    libmap::svg2geojson("map2.svg", &mut result, PointSampler { rate: 32.0 })
-    .unwrap();
+    tracing_subscriber::fmt().with_max_level(Level::TRACE).init();
+
+    let mut result = std::fs::File::create("map.json").unwrap();
+    libmap::svg2geojson("map.svg", &mut result, PointSampler { rate: 32.0 }).unwrap();
 }

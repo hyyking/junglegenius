@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 use lyon_path::{Path, traits::{SvgPathBuilder, Build}};
 
-use crate::{pipe::Pipe, Error, parse::Operation};
+use crate::{pipe::Pipe, Error, svg::parse::Operation};
 
 pub enum SvgOperation<S> {
     StartNewGroup(String),
@@ -57,7 +57,7 @@ pub fn build_path(
     path_string: &str,
     builder: impl SvgPathBuilder + Build<PathType = Path> + 'static,
 ) -> Result<Path, nom::Err<nom::error::Error<&str>>> {
-    crate::parse::path_to_operations(path_string).map(|(_, ops)| {
+    crate::svg::parse::path_to_operations(path_string).map(|(_, ops)| {
         ops.into_iter()
             .flatten()
             .fold(builder, |mut builder, op| {

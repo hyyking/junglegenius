@@ -4,6 +4,7 @@ use geojson::Feature;
 
 use crate::Error;
 
+#[derive(Debug)]
 pub struct WriteGeojson<W, T> {
     writer: W,
     features: Vec<Feature>,
@@ -25,20 +26,18 @@ where
     W: Write,
     T: Into<Feature>,
 {
-    type Input = T;
+    type Input = Vec<T>;
 
     type Output = ();
 
     type Error = Error;
 
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
-        self.features.push(input.into());
-        Ok(Some(()))
-    }
 
-    fn close(&mut self) {
-        geojson::ser::to_feature_collection_writer(&mut self.writer, &self.features)
-            .map_err(|_| Error::GeoJsonWrite)
-            .unwrap()
+        let features = input.into_iter().map(Into::<Feature>::into).collect::<Vec<_>>();
+
+        info!("Writing {} features to geojson", features.len());
+        geojson::ser::to_feature_collection_writer(&mut self.writer, &features)
+        .map_err(|_| Error::GeoJsonWrite).map(Some)
     }
 }

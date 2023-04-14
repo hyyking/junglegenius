@@ -1,6 +1,7 @@
 use super::Pipe;
 use crate::Error;
 
+#[derive(Debug)]
 pub struct CloneSplit<T>(std::marker::PhantomData<T>);
 
 impl<T> CloneSplit<T> {
@@ -24,7 +25,7 @@ where
     }
     fn close(&mut self) {}
 }
-
+#[derive(Debug)]
 pub struct ConsumeLeft<C, T> {
     consummer: C,
     _s: std::marker::PhantomData<T>,
