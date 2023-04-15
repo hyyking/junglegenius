@@ -7,7 +7,6 @@ use crate::Error;
 #[derive(Debug)]
 pub struct WriteGeojson<W, T> {
     writer: W,
-    features: Vec<Feature>,
     _s: std::marker::PhantomData<T>,
 }
 
@@ -15,7 +14,6 @@ impl<W, T> WriteGeojson<W, T> {
     pub fn new(writer: W) -> Self {
         Self {
             writer,
-            features: vec![],
             _s: std::marker::PhantomData,
         }
     }

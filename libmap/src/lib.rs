@@ -12,16 +12,18 @@ extern crate tracing;
 use std::io::Write;
 
 pub mod intextgrouper;
-pub mod svg;
+mod mesh_mapper;
 pub mod pipe;
 pub mod ser;
+pub mod svg;
+pub mod maptri;
 
 use pipe::TryCollector;
 
 use crate::{
     intextgrouper::IntExtGrouper,
-    svg::{SvgReader, PointSampler},
     pipe::{CloneSplit, ConsumeLeft, Pipe, Producer},
+    svg::{PointSampler, SvgReader},
 };
 
 #[derive(Debug)]
@@ -36,7 +38,7 @@ pub enum Error {
 pub fn svg2geojson(
     path: impl AsRef<std::path::Path>,
     output: impl Write,
-    sampler: PointSampler,
+    sampler: svg::LineStringSampler,
 ) -> Result<(), Error> {
     let mut buff = String::with_capacity(4096);
 
@@ -45,13 +47,15 @@ pub fn svg2geojson(
         .feed(
             SvgReader::default()
                 .pipe(sampler)
-                .pipe(IntExtGrouper::new()),
+                .pipe(IntExtGrouper::new())
+                .pipe(mesh_mapper::MeshMapper {}),
         )
         .producer()
         .feed(
             TryCollector::new()
                 .pipe(CloneSplit::new())
-                .pipe(ConsumeLeft::new(ser::WriteGeojson::new(output))),
+                .pipe(ConsumeLeft::new(ser::WriteGeojson::new(output)))
+                .pipe(crate::maptri::MapTri::new()),
         );
 
     Ok(std::iter::from_fn(|| pipes.produce()).for_each(drop))

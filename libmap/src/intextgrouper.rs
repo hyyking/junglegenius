@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use geo::{Polygon, LineString};
 use geojson::Feature;
 
 use crate::{pipe::Pipe, svg::parse::RGB, svg::SvgOperation};
@@ -32,15 +33,15 @@ impl<S> IntExtGrouper<S> {
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct PolySample<S> {
+pub struct PolySample {
     pub id: String,
-    pub poly: Vec<S>,
+    pub poly: Polygon,
     pub properties: HashMap<String, SampleProperties>,
     pub groups: Vec<String>,
 }
 
-impl From<PolySample<Vec<Vec<f64>>>> for Feature {
-    fn from(sample: PolySample<Vec<Vec<f64>>>) -> Self {
+impl From<PolySample> for Feature {
+    fn from(sample: PolySample) -> Self {
         let properties = serde_json::to_value(sample.properties)
             .ok()
             .as_ref()
@@ -48,7 +49,7 @@ impl From<PolySample<Vec<Vec<f64>>>> for Feature {
             .cloned();
         Feature {
             bbox: None,
-            geometry: Some(geojson::Value::Polygon(sample.poly).into()),
+            geometry: Some(geojson::Geometry::from(&sample.poly).into()),
             id: Some(geojson::feature::Id::String(sample.id)),
             properties,
             foreign_members: None,
@@ -58,13 +59,13 @@ impl From<PolySample<Vec<Vec<f64>>>> for Feature {
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct SampleProperties {
-    groups: Vec<String>,
-    fill: Option<RGB>,
+    pub groups: Vec<String>,
+    pub fill: Option<RGB>,
 }
 
-impl<S> Pipe for IntExtGrouper<S> {
+impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
     type Input = SvgOperation<S>;
-    type Output = PolySample<S>;
+    type Output = PolySample;
 
     type Error = crate::Error;
 
@@ -88,11 +89,8 @@ impl<S> Pipe for IntExtGrouper<S> {
                 let id = attrs.get("id").map(ToString::to_string).unwrap_or_default();
 
                 fn fill(fill: &svg::node::Value) -> Option<RGB> {
-                    let (_, rgb) = nom::branch::alt((
-                        crate::svg::parse::parse_rgb,
-                        crate::svg::parse::parse_hex_rgb,
-                    ))(fill)
-                    .ok()?;
+                    let (_, rgb) =
+                        nom::branch::alt((crate::svg::parse::parse_rgb, crate::svg::parse::parse_hex_rgb))(fill).ok()?;
                     Some(rgb)
                 }
                 let properties = SampleProperties {
@@ -109,7 +107,7 @@ impl<S> Pipe for IntExtGrouper<S> {
 
                         return Ok(Some(PolySample {
                             id: self.current_id.clone(),
-                            poly: self.current_poly.drain(..).collect(),
+                            poly: self.current_poly.split_off(0).collect_poly(),
                             properties: self.current_properties.drain().collect::<HashMap<_, _>>(),
                             groups: self.current_groups.clone(),
                         }));
@@ -146,7 +144,7 @@ impl<S> Pipe for IntExtGrouper<S> {
                     trace!("new path: {}", self.current_id);
                     return Ok(Some(PolySample {
                         id: self.current_id.clone(),
-                        poly: self.current_poly.drain(..).collect(),
+                        poly: self.current_poly.split_off(0).collect_poly(),
                         properties: self.current_properties.drain().collect::<HashMap<_, _>>(),
                         groups: self.current_groups.clone(),
                     }));
@@ -155,5 +153,17 @@ impl<S> Pipe for IntExtGrouper<S> {
             }
             SvgOperation::NotSupported => Ok(None),
         }
+    }
+}
+
+
+pub trait CollectPoly {
+    fn collect_poly(self) -> Polygon;
+}
+
+impl CollectPoly for Vec<LineString> {
+    fn collect_poly(mut self) -> Polygon {
+        let interior = self.split_off(1);
+        Polygon::new(self.pop().unwrap(), interior)
     }
 }

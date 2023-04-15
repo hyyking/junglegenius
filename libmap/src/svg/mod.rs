@@ -3,4 +3,4 @@ mod sampler;
 pub mod parse;
 
 pub use reader::{SvgOperation, SvgReader};
-pub use sampler::{PathSampler,  PointSampler, IdSampler};
+pub use sampler::{PathSampler,  PointSampler, IdSampler, LineStringSampler};

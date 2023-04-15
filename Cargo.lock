@@ -1351,14 +1351,20 @@ checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
 name = "libmap"
 version = "0.1.0"
 dependencies = [
+ "flexbuffers",
  "geo",
  "geojson",
  "lyon_algorithms",
  "lyon_geom",
  "lyon_path",
  "nom",
+ "num-traits",
+ "oobb",
+ "rayon",
+ "rstar",
  "serde",
  "serde_json",
+ "spade",
  "svg",
  "tracing",
  "tracing-subscriber",
@@ -1448,22 +1454,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
-]
-
-[[package]]
-name = "maptri"
-version = "0.1.0"
-dependencies = [
- "flexbuffers",
- "geo",
- "geojson",
- "libmap",
- "num-traits",
- "oobb",
- "rayon",
- "rstar",
- "serde",
- "spade",
 ]
 
 [[package]]

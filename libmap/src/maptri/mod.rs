@@ -1,4 +1,5 @@
-#![feature(iterator_try_collect)]
+pub mod cvt;
+pub mod wall;
 
 use std::{borrow::Borrow, collections::HashSet, io::Write};
 
@@ -7,12 +8,12 @@ use geo::{
     RemoveRepeatedPoints,
 };
 use geojson::{FeatureCollection, Geometry};
-use maptri::{
+use rstar::{primitives::GeomWithData, PointDistance};
+use spade::{ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation};
+use {
     cvt::{poly_from_voronoi_face, CentralVoronoiTesselation},
     wall::Wall,
 };
-use rstar::{primitives::GeomWithData, PointDistance};
-use spade::{ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation};
 
 pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection {
     let file = std::fs::File::open(path).unwrap();
@@ -20,6 +21,8 @@ pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection
     return FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
 }
 use rayon::prelude::*;
+
+use crate::pipe::Pipe;
 
 struct NavMapTriangulation {
     walls: rstar::RTree<Wall>,
@@ -204,7 +207,8 @@ impl NavMapTriangulation {
     }
 }
 
-fn main() {
+// #[test]
+pub fn maptri() {
     let mut tri = NavMapTriangulation {
         walls: rstar::RTree::new(),
         nav: rstar::RTree::new(),
@@ -358,4 +362,78 @@ fn fit_poly_to_walls(poly: Polygon, walls: &rstar::RTree<Wall>) -> Polygon {
         }
     });
     geo::Polygon::new(coords.collect::<LineString>(), vec![])
+}
+
+pub struct MapTri {
+    tri: NavMapTriangulation,
+}
+
+impl MapTri {
+    pub fn new() -> Self {
+        Self {
+            tri: NavMapTriangulation {
+                walls: rstar::RTree::new(),
+                nav: rstar::RTree::new(),
+            },
+        }
+    }
+}
+
+impl Pipe for MapTri {
+    type Input = Vec<crate::mesh_mapper::Mesh>;
+
+    type Output = ();
+
+    type Error = crate::Error;
+
+    fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        for mesh in input {
+            match mesh {
+                crate::mesh_mapper::Mesh::Wall(wall) => {
+                    self.tri.populate_walls(&wall.poly, wall.id);
+                }
+                crate::mesh_mapper::Mesh::Nav(_) => {},
+                crate::mesh_mapper::Mesh::Unspecified(_) => {},
+            }
+        }
+
+        let mut cdt = self.tri.build();
+
+        let refr = cdt.refine(
+            RefinementParameters::new()
+                .keep_constraint_edges()
+                .exclude_outer_faces(&cdt)
+                .with_min_required_area(128.0 * 128.0),
+        );
+        println!("BUILD Refinement | complete {}", refr.refinement_complete);
+        println!("inner faces {}", cdt.inner_faces().count());
+        println!("excluded faces: {}", refr.excluded_faces.len());
+
+        let cdt = cdt.cvt_lloyds_algorithm(8.0).unwrap();
+
+        let mut s = flexbuffers::FlexbufferSerializer::new();
+        use serde::ser::Serialize;
+        cdt.serialize(&mut s).unwrap();
+
+        let mut f = std::fs::File::create("nashmesh.flat").unwrap();
+        f.write_all(s.view()).unwrap();
+
+        let features = voronoi_faces_geom(cdt, &self.tri.walls)
+            .unwrap()
+            .into_iter()
+            .enumerate()
+            .map(|(i, poly)| geojson::Feature {
+                id: Some(geojson::feature::Id::String(format!("{i}"))),
+                bbox: None,
+                geometry: Some(poly),
+                properties: None,
+                foreign_members: None,
+            })
+            .collect::<Vec<_>>();
+
+        println!("BUILD: writing {} poly", features.len());
+        let mut f = std::fs::File::create("navmesh.json").unwrap();
+        geojson::ser::to_feature_collection_writer(&mut f, &features).unwrap();
+        Ok(Some(()))
+    }
 }

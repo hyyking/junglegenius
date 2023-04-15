@@ -1,4 +1,4 @@
-use libmap::svg::PointSampler;
+use libmap::svg::LineStringSampler;
 
 fn main() {
     println!("cargo:rerun-if-changed=../map.svg");
@@ -9,7 +9,7 @@ fn main() {
     libmap::svg2geojson(
         "../map.svg",
         &mut result,
-        PointSampler { rate: 128.0 },
+        LineStringSampler { rate: 128.0 },
     )
     .unwrap();
 }
