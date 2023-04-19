@@ -11,7 +11,7 @@ pub mod units;
 
 // mod kind;
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct UnitId(u64);
 
 impl std::fmt::Debug for UnitId {

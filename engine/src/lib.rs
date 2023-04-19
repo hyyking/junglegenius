@@ -143,6 +143,19 @@ impl Engine for MinimapEngine {
     }
 }
 
+impl MinimapEngine {
+    pub fn init() -> (Self, ecs::store::EntityStore) {
+        let mut store = ecs::builder::EntityStoreBuilder::new();
+        let mut engine = MinimapEngine {
+            timer: GameTimer::GAME_START,
+        };
+        engine.on_start(&mut store);
+    
+        let store = store.build();
+        (engine, store)
+    }
+}
+
 #[test]
 fn run_engine() {
     use ecs::builder::EntityStoreBuilder;

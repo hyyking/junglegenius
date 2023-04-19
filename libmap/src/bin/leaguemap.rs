@@ -28,7 +28,7 @@ fn main() -> color_eyre::eyre::Result<()> {
                 .pipe(MapTri::new())
                 .pipe(Refine)
                 .pipe(CenterTesselation { threshold: 16.0 })
-                .pipe(ser::WriteTesselation),
+                .pipe(ser::WriteFlexbuffer::new(std::fs::File::create("navmesh.flat").unwrap())),
         );
 
     Ok(std::iter::from_fn(|| pipes.produce()).for_each(drop))

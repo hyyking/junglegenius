@@ -39,7 +39,7 @@ impl Inhibitor<'_> {
     }
 
     pub fn get_state(&self) -> &InhibitorComponent {
-        &self.store.inhibitor[self.get_specific_unchecked().unwrap()].1
+        &self.store.inhibitors[self.get_specific_unchecked().unwrap()].1
     }
 }
 

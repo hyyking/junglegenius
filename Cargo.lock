@@ -635,6 +635,8 @@ dependencies = [
  "oobb",
  "pathfinding",
  "rstar",
+ "serde",
+ "serde_json",
  "slab",
 ]
 
