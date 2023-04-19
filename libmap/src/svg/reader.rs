@@ -41,7 +41,7 @@ impl<'a> Pipe for SvgReader<'a> {
                     .get("d")
                     .ok_or(SvgError::PathNotFound { attrs: attrs.clone() })?
                     .deref();
-
+ 
                 let path = build_path(
                     v,
                     Path::svg_builder().transformed(lyon_geom::Transform::scale(

@@ -19,7 +19,7 @@ impl From<Mesh> for Feature {
     }
 }
 
-pub struct MeshMapper {}
+pub struct MeshMapper;
 
 impl Pipe for MeshMapper {
     type Input = PolySample;

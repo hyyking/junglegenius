@@ -17,8 +17,6 @@ serde_json = {version = "1.0" }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.16", features=["env-filter"] }
 geo = {version = "0.24"}
-
-
 oobb = {path="../oobb"}
 spade = { git = "https://github.com/Stoeoef/spade.git", branch = "delaunay_refinement", features=["serde"] }
 num-traits = {version = "0.2"}
@@ -27,3 +25,4 @@ flexbuffers = "2.0"
 rstar = {version = "0.10"}
 eyre = "0.6.8"
 thiserror = "1.0.40"
+color-eyre = "0.6"

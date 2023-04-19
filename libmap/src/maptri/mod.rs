@@ -111,33 +111,35 @@ impl NavMapTriangulation {
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
 
-            info!(?rect, "found top_left wall");
+            info!(y_max=?p1, x_max=?p2, "found top_left wall");
 
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
-            info!("inserting top_left bound");
-            let top_left = cdt.insert(Point2::new(0.0, 0.0)).unwrap();
-            points.insert(GeomWithData::new([0.0, 0.0], top_left));
+            let bound = Point2::new(0.0, 0.0);
+            info!(?bound, "inserting top_left bound");
+            let top_left = cdt.insert(bound).unwrap();
+            points.insert(GeomWithData::new([bound.x, bound.y], top_left));
         }
 
         if let Some(Wall(top_right, _)) = self.walls.locate_at_point(&[14979.0, 1.0]) {
             let rect = top_right.extremes().unwrap();
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
-            let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
+            let p2 = spade::mitigate_underflow(Point2::new(rect.x_min.coord.x, rect.x_min.coord.y));
 
-            info!(?rect, "found top_right wall");
+            info!(y_max=?p1, x_min=?p2, "found top_right wall");
 
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
-            info!("inserting top_right bound");
-            let top_right = cdt.insert(Point2::new(14980.0, 0.0)).unwrap();
-            points.insert(GeomWithData::new([14980.0, 0.0], top_right));
+            let bound = Point2::new(14980.0, 0.0);
+            info!(?bound, "inserting top_right bound");
+            let top_right = cdt.insert(bound).unwrap();
+            points.insert(GeomWithData::new([bound.x, bound.y], top_right));
         }
 
         if let Some(Wall(bot_right, _)) = self.walls.locate_at_point(&[14970.0, 14970.0]) {
@@ -145,31 +147,39 @@ impl NavMapTriangulation {
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_min.coord.x, rect.y_min.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_min.coord.x, rect.x_min.coord.y));
             info!(?rect, "found bot_right wall");
+
+            info!(y_min=?p1, x_min=?p2, "found bot_right wall");
+
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
-            info!("inserting bot_right bound");
-            let bot_right = cdt.insert(Point2::new(14980.0, 14980.0)).unwrap();
-            points.insert(GeomWithData::new([14980.0, 14980.0], bot_right));
+            let bound = Point2::new(14980.0, 14980.0);
+            info!(?bound, "inserting bot_right bound");
+            let bot_right = cdt.insert(bound).unwrap();
+            points.insert(GeomWithData::new([bound.x, bound.y], bot_right));
         }
 
         if let Some(Wall(bot_left, _)) = self.walls.locate_at_point(&[1.0, 14979.0]) {
             let rect = bot_left.extremes().unwrap();
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_min.coord.x, rect.y_min.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
-            info!(?rect, "found bot_left wall");
+
+            info!(y_max=?p1, x_min=?p2, "found bot_left wall");
 
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
-            info!("inserting bot_left bound");
-            let bot_left = cdt.insert(Point2::new(0.0, 14980.0)).unwrap();
-            points.insert(GeomWithData::new([0.0, 14980.0], bot_left));
+            let bound = Point2::new(0.0, 14980.0);
+            info!(?bound, "inserting bot_left bound");
+            let bot_left = cdt.insert(bound).unwrap();
+            points.insert(GeomWithData::new([bound.x, bound.y], bot_left));
         }
+
+
         let hull = points
             .into_iter()
             .map(|p| geo::point! {x: p.geom()[0], y: p.geom()[1]})

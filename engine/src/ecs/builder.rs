@@ -39,7 +39,7 @@ impl EntityStoreBuilder {
             position: slab::Slab::with_capacity(64),
             turret: slab::Slab::with_capacity(64),
             inhibitor: slab::Slab::with_capacity(64),
-            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3),
+            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3), // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
             pathfinding,
             map: FeatureCollection {
                 bbox: None,
@@ -120,7 +120,7 @@ impl EntityStoreBuilder {
             turret: self.turret,
             inhibitor: self.inhibitor,
             pathfinding: self.pathfinding,
-            minions: self.minions, // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
+            minions: self.minions,
             nav,
         }
     }

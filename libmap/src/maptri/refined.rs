@@ -23,7 +23,6 @@ impl Pipe for Refine {
                 .with_min_required_area(64.0 * 48.0),
         );
         info!(complete = refinement.refinement_complete);
-        trace!(inner_faces = cdt.inner_faces().count());
         trace!(excluded_faces = refinement.excluded_faces.len());
 
         if refinement.refinement_complete {

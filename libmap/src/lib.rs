@@ -13,7 +13,7 @@ use std::io::Write;
 
 pub mod intextgrouper;
 pub mod maptri;
-mod mesh_mapper;
+pub mod mesh_mapper;
 pub mod pipe;
 pub mod ser;
 pub mod svg;
