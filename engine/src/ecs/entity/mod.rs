@@ -1,4 +1,4 @@
-use rstar::{Envelope};
+use rstar::Envelope;
 
 use crate::{
     core::Team,
@@ -88,7 +88,7 @@ pub(crate) trait EntityRefCrateExt<'store>: EntityRef<'store> {
 pub(crate) struct UnitRemoval(pub(crate) PositionComponent, pub(crate) UnitId);
 
 impl rstar::SelectionFunction<CollisionBox> for UnitRemoval {
-    fn should_unpack_parent(&self, envelope: &oobb::OOBB) -> bool {
+    fn should_unpack_parent(&self, envelope: &oobb::OOBB<f32>) -> bool {
         envelope.contains_point(&[self.0.point.x, self.0.point.y])
     }
     fn should_unpack_leaf(&self, leaf: &CollisionBox) -> bool {

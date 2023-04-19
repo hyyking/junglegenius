@@ -13,3 +13,5 @@ lyon = { version = "1" }
 pathfinding = {version="4"}
 rstar = {version = "0.10"}
 oobb = {path = "../oobb"}
+geo = {version = "0.24"}
+geojson = {version = "0.24", features=["geo-types"]}

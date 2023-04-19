@@ -26,7 +26,6 @@ pub struct EntityStore {
     pub(crate) turret: slab::Slab<WithId<TurretComponent>>,
     pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
-
     pub nav: NavigationMap,
 }
 

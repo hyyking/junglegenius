@@ -12,7 +12,7 @@ pub enum CollisionBox {
 }
 
 impl rstar::RTreeObject for CollisionBox {
-    type Envelope = oobb::OOBB;
+    type Envelope = oobb::OOBB<f32>;
 
     fn envelope(&self) -> Self::Envelope {
         match self {
@@ -24,7 +24,9 @@ impl rstar::RTreeObject for CollisionBox {
 
 pub struct NavigationMap {
     pub tree: rstar::RTree<CollisionBox>,
+    pub triangulation: libmap::maptri::refined::RefinedTesselation,
 }
+
 
 impl rstar::PointDistance for CollisionBox {
     fn distance_2(&self, point: &[f32; 2]) -> f32 {

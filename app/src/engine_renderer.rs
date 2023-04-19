@@ -1,3 +1,4 @@
+use iced::keyboard::KeyCode;
 use iced::widget::canvas::Program;
 
 use crate::message::{LayoutMessage, Message};
@@ -5,21 +6,16 @@ use crate::message::{LayoutMessage, Message};
 use engine::core::GameTimer;
 use engine::ecs::builder::EntityStoreBuilder;
 use engine::ecs::store::EntityStore;
-use engine::ecs::structures::MAP_BOUNDS as SIMBOUNDS;
+use engine::ecs::structures::MAP_BOUNDS;
 use engine::nav_engine::CollisionBox;
 use engine::MinimapEngine;
-
-pub const MAP_BOUNDS: iced::Rectangle = iced::Rectangle {
-    x: SIMBOUNDS.x,
-    y: SIMBOUNDS.y,
-    width: SIMBOUNDS.width,
-    height: SIMBOUNDS.height,
-};
 
 pub struct EngineRenderer {
     pub store: EntityStore,
     pub engine: MinimapEngine,
     current_frame: iced::widget::canvas::Cache,
+    debug: iced::widget::canvas::Cache,
+    hull: geo::Polygon,
 }
 
 impl EngineRenderer {
@@ -37,10 +33,20 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(60)),
         );
 
+        let file = std::fs::File::open("hull.json").unwrap();
+        let hull = geojson::Feature::try_from(geojson::GeoJson::from_reader(&file).unwrap())
+            .unwrap()
+            .geometry
+            .unwrap()
+            .try_into()
+            .unwrap();
+
         Self {
             store,
             engine,
             current_frame: iced::widget::canvas::Cache::new(),
+            debug: iced::widget::canvas::Cache::new(),
+            hull,
         }
     }
 
@@ -57,6 +63,7 @@ impl EngineRenderer {
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Selection {
     append_mode: bool,
+    debug: bool,
     state: SelectionState,
 }
 
@@ -71,6 +78,12 @@ pub enum SelectionState {
     },
 }
 
+/*
+# stocker la selection => engine/src/ecs/store.rs
+reference à la selection => app/src/grid/pane.rs
+afficher la selection => app/src/grid/mod.rs
+création de la sélection => app/src/engine_renderer.rs
+ */
 impl Program<Message> for EngineRenderer {
     type State = Selection;
 
@@ -85,6 +98,13 @@ impl Program<Message> for EngineRenderer {
         match event {
             iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::ModifiersChanged(m)) => {
                 state.append_mode = m.contains(iced::keyboard::Modifiers::CTRL);
+            }
+
+            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key_code: KeyCode::P,
+                ..
+            }) => {
+                state.debug = !state.debug;
             }
             iced::widget::canvas::Event::Mouse(mouseev) => {
                 let Some(position) = cursor.position_in(&bounds) else { return (iced::widget::canvas::event::Status::Ignored, None) };
@@ -193,28 +213,6 @@ impl Program<Message> for EngineRenderer {
                     &iced::widget::canvas::Path::circle(iced::Point::new(pos.x, pos.y), radius),
                     team,
                 );
-
-                /*
-                    CollisionBox::Polygon(poly) => {
-                        /* TODO: this is made for debuging the walls */
-                        let path = iced::widget::canvas::Path::new(|builder| {
-                            for line in poly.exterior().lines() {
-                                let start = line.start;
-                                let end = line.end;
-
-                                builder.move_to(iced::Point::new(start.x as f32, start.y as f32));
-                                builder.line_to(iced::Point::new(end.x as f32, end.y as f32));
-                            }
-                        });
-
-                        frame.stroke(
-                            &path,
-                            iced::widget::canvas::Stroke::default()
-                                .with_width(1.0)
-                                .with_color(iced::Color::from_rgba8(255, 0, 0, 1.0)),
-                        );
-                    }
-                */
             }
         });
 
@@ -239,6 +237,59 @@ impl Program<Message> for EngineRenderer {
             _ => {}
         }
 
-        vec![game_frame, selection_frame.into_geometry()]
+        let mut frames = vec![game_frame, selection_frame.into_geometry()];
+
+        if state.debug {
+            frames.push(draw_debug(self, &bounds))
+        }
+
+        frames
     }
+}
+
+pub fn draw_debug(
+    renderer: &EngineRenderer,
+    bounds: &iced::Rectangle,
+) -> iced::widget::canvas::Geometry {
+    renderer.debug.draw(bounds.size(), |frame| {
+        frame.scale(frame.width() / MAP_BOUNDS.width);
+
+        for vertex in renderer
+            .store
+            .nav
+            .triangulation
+            .unconstrained_inner_vertices()
+        {
+            vertex.as_voronoi_face().adjacent_edges().for_each(|edge| {
+                let [a, b] = edge.as_undirected().vertices();
+
+                let (a, b) = (a.position().unwrap(), b.position().unwrap());
+
+                frame.stroke(
+                    &iced::widget::canvas::Path::line(
+                        iced::Point::new(a.x as f32, a.y as f32),
+                        iced::Point::new(b.x as f32, b.y as f32),
+                    ),
+                    iced::widget::canvas::Stroke::default()
+                        .with_color(iced::Color::from_rgb(0.0, 1.0, 0.0))
+                        .with_width(2.0),
+                );
+            });
+        }
+
+        for line in renderer.hull.exterior().lines() {
+            let start = line.start;
+            let end = line.end;
+
+            frame.stroke(
+                &iced::widget::canvas::Path::line(
+                    iced::Point::new(start.x as f32, start.y as f32),
+                    iced::Point::new(end.x as f32, end.y as f32),
+                ),
+                iced::widget::canvas::Stroke::default()
+                    .with_color(iced::Color::from_rgb(0.0, 0.0, 1.0))
+                    .with_width(2.0),
+            )
+        }
+    })
 }

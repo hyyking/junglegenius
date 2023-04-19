@@ -1,8 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Read};
 
-use geo::{LineString, Polygon};
+use geo::{Polygon};
 use geojson::FeatureCollection;
-
 
 use crate::{
     ecs::{
@@ -40,7 +39,7 @@ impl EntityStoreBuilder {
             position: slab::Slab::with_capacity(64),
             turret: slab::Slab::with_capacity(64),
             inhibitor: slab::Slab::with_capacity(64),
-            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3),
+            minions: slab::Slab::with_capacity(8 * 3 * 2 * 3), // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
             pathfinding,
             map: FeatureCollection {
                 bbox: None,
@@ -90,6 +89,13 @@ impl EntityStoreBuilder {
     }
 
     pub fn build(self) -> EntityStore {
+        let mut f = std::fs::File::open("navmesh.flat").unwrap();
+
+        let mut buff = Vec::with_capacity(f.metadata().unwrap().len() as usize);
+        f.read_to_end(&mut buff).unwrap();
+        
+        let triangulation = flexbuffers::from_slice(&buff[..]).unwrap();
+        
         let nav = NavigationMap {
             tree: rstar::RTree::bulk_load(
                 self.position
@@ -98,14 +104,15 @@ impl EntityStoreBuilder {
                         position: data.clone(),
                         guid: guid.clone(),
                     })
-                    .chain(self.map.features.into_iter().map(|f| {
-                        CollisionBox::Polygon(Polygon::new(
-                            LineString::try_from(f).unwrap(),
-                            vec![],
-                        ))
-                    }))
+                    .chain(
+                        self.map
+                            .features
+                            .into_iter()
+                            .map(|f| CollisionBox::Polygon(Polygon::try_from(f).unwrap())),
+                    )
                     .collect(),
             ),
+            triangulation,
         };
         EntityStore {
             entities: self.entities,
@@ -113,7 +120,7 @@ impl EntityStoreBuilder {
             turret: self.turret,
             inhibitor: self.inhibitor,
             pathfinding: self.pathfinding,
-            minions: self.minions, // max none degenerate case: 8 minions per wave, 3 waves per lane at most, 2 teams, 3 lanes
+            minions: self.minions,
             nav,
         }
     }
