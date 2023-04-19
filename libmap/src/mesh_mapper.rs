@@ -28,6 +28,7 @@ impl Pipe for MeshMapper {
 
     type Error = crate::Error;
 
+    #[tracing::instrument(skip(self, input), err(Debug))]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         let PolySample {
             id,
@@ -38,7 +39,7 @@ impl Pipe for MeshMapper {
 
         let mesh = match groups.get(0).map(String::as_str) {
             Some("walls") => {
-                debug!("{id}: {groups:?}");
+                trace!(wall = id);
                 Mesh::Wall(PolySample {
                     id,
                     poly,
@@ -46,12 +47,15 @@ impl Pipe for MeshMapper {
                     groups,
                 })
             }
-            Some("nav") => Mesh::Nav(PolySample {
-                id,
-                poly,
-                properties,
-                groups,
-            }),
+            Some("nav") => {
+                trace!(nav = id);
+                Mesh::Nav(PolySample {
+                    id,
+                    poly,
+                    properties,
+                    groups,
+                })
+            }
             _ => Mesh::Unspecified(PolySample {
                 id,
                 poly,

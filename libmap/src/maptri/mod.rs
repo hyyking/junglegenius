@@ -1,28 +1,23 @@
 pub mod cvt;
+pub mod refined;
 pub mod wall;
 
-use std::{borrow::Borrow, collections::HashSet, io::Write};
+use std::{collections::HashSet, io::Write};
 
 use geo::{
-    ClosestPoint, ConvexHull, CoordsIter, Extremes, LineString, Point, Polygon,
+    BoundingRect, ConcaveHull, CoordsIter, Extremes, LineString, Point, Polygon,
     RemoveRepeatedPoints,
 };
-use geojson::{FeatureCollection, Geometry};
+use geojson::Geometry;
 use rstar::{primitives::GeomWithData, PointDistance};
-use spade::{ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation};
-use {
-    cvt::{poly_from_voronoi_face, CentralVoronoiTesselation},
-    wall::Wall,
-};
+use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
+use {cvt::poly_from_voronoi_face, wall::Wall};
 
-pub fn load_map(path: impl AsRef<std::path::Path>) -> geojson::FeatureCollection {
-    let file = std::fs::File::open(path).unwrap();
-
-    return FeatureCollection::try_from(geojson::GeoJson::from_reader(&file).unwrap()).unwrap();
-}
 use rayon::prelude::*;
 
 use crate::pipe::Pipe;
+
+use self::refined::RefinedTesselation;
 
 struct NavMapTriangulation {
     walls: rstar::RTree<Wall>,
@@ -31,7 +26,7 @@ struct NavMapTriangulation {
 
 impl NavMapTriangulation {
     fn populate_walls(&mut self, wall: &Polygon, id: String) -> isize {
-        const CLOSE: f64 = 16.0 * 16.0;
+        const CLOSE: f64 = 4.0 * 4.0;
 
         let mut ext = wall
             .exterior_coords_iter()
@@ -102,79 +97,97 @@ impl NavMapTriangulation {
     fn build(&self) -> spade::ConstrainedDelaunayTriangulation<Point2<f64>> {
         let mut cdt = spade::ConstrainedDelaunayTriangulation::<Point2<f64>>::new();
         let mut points = rstar::RTree::new();
-        /*
-               for &[x, y] in self.nav.iter() {
-                   if x == 0.0 || y == 0.0 || x == 14930.0 || y == 14930.0 {
-                       continue;
-                   }
-                   let p = spade::mitigate_underflow(Point2::new(x, y));
-                   points.insert(GeomWithData::new([p.x, p.y], cdt.insert(p).unwrap()));
-               }
-        */
-        if let Some(Wall(top_left, _)) = self.walls.locate_at_point(&[0.0, 0.0]) {
+
+        for &[x, y] in self.nav.iter() {
+            if x < 10.0 || y < 10.0 || x > 14930.0 || y > 14930.0 {
+                continue;
+            }
+            let p = spade::mitigate_underflow(Point2::new(x, y));
+            points.insert(GeomWithData::new([p.x, p.y], cdt.insert(p).unwrap()));
+        }
+
+        if let Some(Wall(top_left, _)) = self.walls.locate_at_point(&[1.0, 1.0]) {
             let rect = top_left.extremes().unwrap();
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
 
+            info!(?rect, "found top_left wall");
+
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
-
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
+            info!("inserting top_left bound");
             let top_left = cdt.insert(Point2::new(0.0, 0.0)).unwrap();
             points.insert(GeomWithData::new([0.0, 0.0], top_left));
         }
 
-        if let Some(Wall(top_right, _)) = self.walls.locate_at_point(&[14980.0, 0.0]) {
+        if let Some(Wall(top_right, _)) = self.walls.locate_at_point(&[14979.0, 1.0]) {
             let rect = top_right.extremes().unwrap();
             let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
 
+            info!(?rect, "found top_right wall");
+
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
-
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
+            info!("inserting top_right bound");
             let top_right = cdt.insert(Point2::new(14980.0, 0.0)).unwrap();
             points.insert(GeomWithData::new([14980.0, 0.0], top_right));
         }
 
-        if let Some(Wall(bot_right, _)) = self.walls.locate_at_point(&[14980.0, 14980.0]) {
+        if let Some(Wall(bot_right, _)) = self.walls.locate_at_point(&[14970.0, 14970.0]) {
             let rect = bot_right.extremes().unwrap();
-            let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
-            let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
-
+            let p1 = spade::mitigate_underflow(Point2::new(rect.y_min.coord.x, rect.y_min.coord.y));
+            let p2 = spade::mitigate_underflow(Point2::new(rect.x_min.coord.x, rect.x_min.coord.y));
+            info!(?rect, "found bot_right wall");
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
-
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
+            info!("inserting bot_right bound");
             let bot_right = cdt.insert(Point2::new(14980.0, 14980.0)).unwrap();
             points.insert(GeomWithData::new([14980.0, 14980.0], bot_right));
         }
 
-        if let Some(Wall(bot_right, _)) = self.walls.locate_at_point(&[0.0, 14980.0]) {
-            let rect = bot_right.extremes().unwrap();
-            let p1 = spade::mitigate_underflow(Point2::new(rect.y_max.coord.x, rect.y_max.coord.y));
+        if let Some(Wall(bot_left, _)) = self.walls.locate_at_point(&[1.0, 14979.0]) {
+            let rect = bot_left.extremes().unwrap();
+            let p1 = spade::mitigate_underflow(Point2::new(rect.y_min.coord.x, rect.y_min.coord.y));
             let p2 = spade::mitigate_underflow(Point2::new(rect.x_max.coord.x, rect.x_max.coord.y));
+            info!(?rect, "found bot_left wall");
 
             let v1 = cdt.insert(p1).unwrap();
             points.insert(GeomWithData::new([p1.x, p1.y], v1));
-
             let v2 = cdt.insert(p2).unwrap();
             points.insert(GeomWithData::new([p2.x, p2.y], v2));
         } else {
-            let bot_right = cdt.insert(Point2::new(0.0, 14980.0)).unwrap();
-            points.insert(GeomWithData::new([0.0, 14980.0], bot_right));
+            info!("inserting bot_left bound");
+            let bot_left = cdt.insert(Point2::new(0.0, 14980.0)).unwrap();
+            points.insert(GeomWithData::new([0.0, 14980.0], bot_left));
         }
         let hull = points
             .into_iter()
-            .map(|p| geo::coord! {x: p.geom()[0], y: p.geom()[1]})
-            .collect::<LineString>()
-            .convex_hull();
+            .map(|p| geo::point! {x: p.geom()[0], y: p.geom()[1]})
+            .collect::<geo::MultiPoint>()
+            .concave_hull(0.01);
+
+        let f = std::fs::File::create("hull.json").unwrap();
+        geojson::ser::to_feature_writer(
+            f,
+            &geojson::Feature {
+                bbox: None,
+                geometry: Some((&hull).into()),
+                id: None,
+                properties: None,
+                foreign_members: None,
+            },
+        )
+        .unwrap();
         cdt.add_constraint_edges(
             hull.coords_iter().map(|coord| {
                 spade::mitigate_underflow(Point2::new(
@@ -188,7 +201,7 @@ impl NavMapTriangulation {
 
         self.walls
             .iter()
-            .filter(|Wall(_, id)| dbg!(id) != "bot_bound" && id != "top_bound")
+            .filter(|Wall(_, id)| id != "bot_bound" && id != "top_bound")
             .map(|Wall(wall, _)| {
                 wall.coords_iter().map(|coord| {
                     spade::mitigate_underflow(Point2::new(
@@ -205,163 +218,6 @@ impl NavMapTriangulation {
         // cdt.add_constraint_edges(hull, true).unwrap();
         cdt
     }
-}
-
-// #[test]
-pub fn maptri() {
-    let mut tri = NavMapTriangulation {
-        walls: rstar::RTree::new(),
-        nav: rstar::RTree::new(),
-    };
-
-    let map = load_map("map.json");
-
-    for feature in map.features {
-        let groups = feature.properties.as_ref().and_then(|m| {
-            let id = m.get("id").and_then(geojson::JsonValue::as_str)?;
-            let props = m
-                .get("properties")
-                .and_then(geojson::JsonValue::as_object)?;
-            props
-                .get(id)
-                .or(props.get("exterior"))
-                .and_then(geojson::JsonValue::as_object)
-                .and_then(|m| m.get("groups"))
-        });
-
-        let poly = geo::Polygon::<f64>::try_from(feature.geometry.unwrap()).unwrap();
-
-        let id = feature
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("id").and_then(|s| s.as_str()))
-            .unwrap_or_default()
-            .to_string();
-
-        if let Some(groups) = groups {
-            let group = groups.as_array().unwrap();
-            if matches!(
-                group.get(0),
-                Some(geojson::JsonValue::String(a)) if std::ops::Deref::deref(&a) == "walls"
-            ) {
-                let new = tri.populate_walls(&poly, id.clone());
-                println!("WALL {id} | {new} vertices simplified");
-            }
-        }
-    }
-
-    let mut cdt = tri.build();
-
-    let refr = cdt.refine(
-        RefinementParameters::new()
-            .keep_constraint_edges()
-            .exclude_outer_faces(&cdt)
-            .with_min_required_area(128.0 * 128.0),
-    );
-    println!("BUILD Refinement | complete {}", refr.refinement_complete);
-    println!("inner faces {}", cdt.inner_faces().count());
-    println!("excluded faces: {}", refr.excluded_faces.len());
-
-    let cdt = cdt.cvt_lloyds_algorithm(8.0).unwrap();
-
-    let mut s = flexbuffers::FlexbufferSerializer::new();
-    use serde::ser::Serialize;
-    cdt.serialize(&mut s).unwrap();
-
-    let mut f = std::fs::File::create("nashmesh.flat").unwrap();
-    f.write_all(s.view()).unwrap();
-
-    let features = voronoi_faces_geom(cdt, &tri.walls)
-        .unwrap()
-        .into_iter()
-        .enumerate()
-        .map(|(i, poly)| geojson::Feature {
-            id: Some(geojson::feature::Id::String(format!("{i}"))),
-            bbox: None,
-            geometry: Some(poly),
-            properties: None,
-            foreign_members: None,
-        })
-        .collect::<Vec<_>>();
-
-    println!("BUILD: writing {} poly", features.len());
-    let mut f = std::fs::File::create("navmesh.json").unwrap();
-    geojson::ser::to_feature_collection_writer(&mut f, &features).unwrap();
-    // write_cdt(cdt, &tri.walls, &refr.excluded_faces);
-}
-
-fn write_cdt(
-    cdt: ConstrainedDelaunayTriangulation<Point2<f64>>,
-    _walls: &rstar::RTree<Wall>,
-    excluded: &HashSet<spade::handles::FixedFaceHandle<spade::handles::InnerTag>>,
-) {
-    let mut features = Vec::with_capacity(cdt.inner_faces().count());
-
-    'a: for (i, face) in cdt.inner_faces().enumerate() {
-        if excluded.contains(&face.fix()) {
-            continue;
-        }
-        let mut exterior = LineString(Vec::new());
-
-        let [a, b, c] = face.adjacent_edges();
-
-        for position in a
-            .vertices()
-            .into_iter()
-            .chain(b.vertices().into_iter())
-            .chain(c.vertices().into_iter())
-        {
-            let a = position.data();
-            let coord = geo::coord! { x: a.x, y: a.y };
-            exterior.0.push(coord);
-        }
-
-        exterior.remove_repeated_points_mut();
-        exterior.close();
-        let tri = geo::Polygon::new(exterior, vec![]);
-
-        features.push(geojson::Feature {
-            id: Some(geojson::feature::Id::String(format!("{i}"))),
-            bbox: None,
-            geometry: Some(tri.borrow().into()),
-            properties: None,
-            foreign_members: None,
-        });
-    }
-
-    println!("BUILD: writing {} poly", features.len());
-    let mut f = std::fs::File::create("navmesh.json").unwrap();
-    geojson::ser::to_feature_collection_writer(&mut f, &features).unwrap();
-}
-
-fn voronoi_faces_geom(
-    cdt: ConstrainedDelaunayTriangulation<Point2<f64>>,
-    walls: &rstar::RTree<Wall>,
-) -> Result<Vec<Geometry>, ()> {
-    cdt.vertices()
-        .collect::<Vec<_>>()
-        .into_par_iter()
-        .map(|v| v.as_voronoi_face())
-        .map(poly_from_voronoi_face)
-        .map(|poly| poly.map(|poly| fit_poly_to_walls(poly, walls)))
-        .map(|poly| poly.map(|p| Geometry::from(&p)))
-        .collect::<Result<Vec<_>, ()>>()
-}
-
-fn fit_poly_to_walls(poly: Polygon, walls: &rstar::RTree<Wall>) -> Polygon {
-    let coords = poly.coords_iter().filter_map(|coord| {
-        if let Some(Wall(wall, _)) = walls.locate_at_point(&[coord.x, coord.y]) {
-            let closest = wall.exterior().closest_point(&coord.into());
-            match closest {
-                geo::Closest::Intersection(p) => Some(p.into()),
-                geo::Closest::SinglePoint(p) => Some(p.into()),
-                geo::Closest::Indeterminate => None,
-            }
-        } else {
-            Some(coord)
-        }
-    });
-    geo::Polygon::new(coords.collect::<LineString>(), vec![])
 }
 
 pub struct MapTri {
@@ -382,58 +238,26 @@ impl MapTri {
 impl Pipe for MapTri {
     type Input = Vec<crate::mesh_mapper::Mesh>;
 
-    type Output = ();
+    type Output = ConstrainedDelaunayTriangulation<Point2<f64>>;
 
     type Error = crate::Error;
 
+    #[tracing::instrument("delaunay", skip(self, input), fields(meshes=input.len()))]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        let mut mw = geo::MultiPolygon::new(vec![]);
         for mesh in input {
             match mesh {
                 crate::mesh_mapper::Mesh::Wall(wall) => {
                     self.tri.populate_walls(&wall.poly, wall.id);
+                    mw.0.push(wall.poly);
                 }
-                crate::mesh_mapper::Mesh::Nav(_) => {},
-                crate::mesh_mapper::Mesh::Unspecified(_) => {},
+                crate::mesh_mapper::Mesh::Nav(_) => {}
+                crate::mesh_mapper::Mesh::Unspecified(_) => {}
             }
         }
 
-        let mut cdt = self.tri.build();
+        debug!(bb = ?mw.bounding_rect());
 
-        let refr = cdt.refine(
-            RefinementParameters::new()
-                .keep_constraint_edges()
-                .exclude_outer_faces(&cdt)
-                .with_min_required_area(128.0 * 128.0),
-        );
-        println!("BUILD Refinement | complete {}", refr.refinement_complete);
-        println!("inner faces {}", cdt.inner_faces().count());
-        println!("excluded faces: {}", refr.excluded_faces.len());
-
-        let cdt = cdt.cvt_lloyds_algorithm(8.0).unwrap();
-
-        let mut s = flexbuffers::FlexbufferSerializer::new();
-        use serde::ser::Serialize;
-        cdt.serialize(&mut s).unwrap();
-
-        let mut f = std::fs::File::create("nashmesh.flat").unwrap();
-        f.write_all(s.view()).unwrap();
-
-        let features = voronoi_faces_geom(cdt, &self.tri.walls)
-            .unwrap()
-            .into_iter()
-            .enumerate()
-            .map(|(i, poly)| geojson::Feature {
-                id: Some(geojson::feature::Id::String(format!("{i}"))),
-                bbox: None,
-                geometry: Some(poly),
-                properties: None,
-                foreign_members: None,
-            })
-            .collect::<Vec<_>>();
-
-        println!("BUILD: writing {} poly", features.len());
-        let mut f = std::fs::File::create("navmesh.json").unwrap();
-        geojson::ser::to_feature_collection_writer(&mut f, &features).unwrap();
-        Ok(Some(()))
+        Ok(Some(self.tri.build()))
     }
 }

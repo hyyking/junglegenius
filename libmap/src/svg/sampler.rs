@@ -6,8 +6,10 @@ use crate::{svg::SvgOperation, Error};
 
 pub trait PathSampler {
     type Sample;
-
+    
     fn sample(&self, path: Path) -> Self::Sample;
+
+    fn rate(&self) -> Option<f32> { None }
 }
 
 impl<S> crate::pipe::Pipe for S
@@ -18,9 +20,15 @@ where
     type Output = SvgOperation<S::Sample>;
     type Error = Error;
 
+    #[tracing::instrument(skip(self, input))]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         Ok(Some(match input {
-            SvgOperation::NewPath(path, attrs) => SvgOperation::NewPath(self.sample(path), attrs),
+            SvgOperation::NewPath(path, attrs) => {
+                let len = lyon_algorithms::length::approximate_length(&path, 0.1);
+                let samples = self.sample(path);
+                trace!(path_len=len, samples=self.rate().map(|r| len / r));
+                SvgOperation::NewPath(samples, attrs)
+            },
             SvgOperation::StartNewGroup(g) => SvgOperation::StartNewGroup(g),
             SvgOperation::EndNewGroup => SvgOperation::EndNewGroup,
             SvgOperation::NotSupported => SvgOperation::NotSupported,
@@ -60,6 +68,8 @@ impl PathSampler for PointSampler {
         }
         samples
     }
+
+    fn rate(&self) -> Option<f32> { Some(self.rate) }
 }
 
 pub struct LineStringSampler {
@@ -85,4 +95,6 @@ impl PathSampler for LineStringSampler {
         }
         LineString(samples)
     }
+
+    fn rate(&self) -> Option<f32> { Some(self.rate) }
 }

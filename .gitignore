@@ -1,4 +1,4 @@
 /target
-**/map.json
-map*.json
+**/**.json
+**.json
 *.flat

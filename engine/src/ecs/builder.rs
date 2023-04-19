@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Read};
 
 use geo::{Polygon};
 use geojson::FeatureCollection;
@@ -89,6 +89,13 @@ impl EntityStoreBuilder {
     }
 
     pub fn build(self) -> EntityStore {
+        let mut f = std::fs::File::open("navmesh.flat").unwrap();
+
+        let mut buff = Vec::with_capacity(f.metadata().unwrap().len() as usize);
+        f.read_to_end(&mut buff).unwrap();
+        
+        let triangulation = flexbuffers::from_slice(&buff[..]).unwrap();
+        
         let nav = NavigationMap {
             tree: rstar::RTree::bulk_load(
                 self.position
@@ -105,6 +112,7 @@ impl EntityStoreBuilder {
                     )
                     .collect(),
             ),
+            triangulation,
         };
         EntityStore {
             entities: self.entities,

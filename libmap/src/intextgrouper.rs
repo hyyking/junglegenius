@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use eyre::ContextCompat;
 use geo::{Polygon, LineString};
 use geojson::Feature;
 
@@ -69,6 +70,7 @@ impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
 
     type Error = crate::Error;
 
+    #[tracing::instrument(skip(self, input), err(Debug))]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         match input {
             SvgOperation::StartNewGroup(id) => {
@@ -93,12 +95,13 @@ impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
                         nom::branch::alt((crate::svg::parse::parse_rgb, crate::svg::parse::parse_hex_rgb))(fill).ok()?;
                     Some(rgb)
                 }
+
                 let properties = SampleProperties {
                     groups: self.current_groups.clone(),
                     fill: attrs.get("fill").as_deref().and_then(fill),
                 };
 
-                match self.state.last().ok_or(crate::Error::ParseRGB)? {
+                match self.state.last().expect("missing state") {
                     AppendMode::Direct => {
                         trace!("new path: {id}");
                         self.current_id = id.clone();
@@ -107,7 +110,7 @@ impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
 
                         return Ok(Some(PolySample {
                             id: self.current_id.clone(),
-                            poly: self.current_poly.split_off(0).collect_poly(),
+                            poly: self.current_poly.split_off(0).collect_poly()?,
                             properties: self.current_properties.drain().collect::<HashMap<_, _>>(),
                             groups: self.current_groups.clone(),
                         }));
@@ -144,7 +147,7 @@ impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
                     trace!("new path: {}", self.current_id);
                     return Ok(Some(PolySample {
                         id: self.current_id.clone(),
-                        poly: self.current_poly.split_off(0).collect_poly(),
+                        poly: self.current_poly.split_off(0).collect_poly()?,
                         properties: self.current_properties.drain().collect::<HashMap<_, _>>(),
                         groups: self.current_groups.clone(),
                     }));
@@ -158,12 +161,12 @@ impl<S> Pipe for IntExtGrouper<S> where Vec<S>: CollectPoly {
 
 
 pub trait CollectPoly {
-    fn collect_poly(self) -> Polygon;
+    fn collect_poly(self) -> Result<Polygon, crate::Error>;
 }
 
 impl CollectPoly for Vec<LineString> {
-    fn collect_poly(mut self) -> Polygon {
+    fn collect_poly(mut self) -> Result<Polygon, crate::Error> {
         let interior = self.split_off(1);
-        Polygon::new(self.pop().unwrap(), interior)
+        Ok(Polygon::new(self.pop().context("exterior of poly is missing")?, interior))
     }
 }

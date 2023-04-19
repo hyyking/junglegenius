@@ -1,19 +1,59 @@
-use geo::GeoFloat;
+use std::collections::HashSet;
+
+use geo::{GeoFloat, RemoveRepeatedPoints};
 use num_traits::{Float, FromPrimitive};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use spade::{
     handles::VoronoiFace, ConstrainedDelaunayTriangulation, InsertionError, Point2, Triangulation,
 };
 
+use crate::{pipe::Pipe, Error};
+
+use super::RefinedTesselation;
+
+pub struct CenterTesselation {
+    pub threshold: f64,
+}
+
+impl Pipe for CenterTesselation {
+    type Input = RefinedTesselation;
+
+    type Output = RefinedTesselation;
+
+    type Error = Error;
+
+    fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        input
+            .cvt_lloyds_algorithm(self.threshold)
+            .map(Some)
+    }
+}
+
+impl CentralVoronoiTesselation for RefinedTesselation {
+    #[tracing::instrument("central_voronoi", skip(self), fields(len = self.cdt.num_vertices()))]
+    fn cvt_lloyds_algorithm(self, max_distance2: f64) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        //self.unconstrained_inner_vertices();
+        Ok(self)
+    }
+}
+
 pub trait CentralVoronoiTesselation {
-    fn cvt_lloyds_algorithm(self, max_distance2: f64) -> Result<Self, ()>
+    fn cvt_lloyds_algorithm(self, max_distance2: f64) -> Result<Self, Error>
     where
         Self: Sized;
 }
 
 impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>> {
-    fn cvt_lloyds_algorithm(mut self, max_distance2: f64) -> Result<Self, ()> {
+    #[tracing::instrument(skip(self), fields(len = self.num_vertices()))]
+    fn cvt_lloyds_algorithm(mut self, max_distance2: f64) -> Result<Self, Error> {
+        let mut i = 0;
         loop {
+            if i > 450 {
+                break Ok(self);
+            }
             #[derive(Clone)]
             struct NoneCenteredCellsFold {
                 vertex: Vec<Point2<f64>>,
@@ -21,12 +61,17 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
                 max_move: f64,
             }
 
-            let vertices = self.vertices().collect::<Vec<_>>();
+            let vertices = self
+                .inner_faces()
+                .into_iter()
+                .map(|v| v.vertices())
+                .flatten()
+                .collect::<HashSet<_>>();
+
             let non_centered = vertices
                 .into_par_iter()
                 .map(|v| -> Result<(Point2<f64>, Point2<f64>, f64), ()> {
                     let centroid = get_centroid(v.as_voronoi_face());
-
                     let vertex = v.data().clone();
                     let distance = vertex.distance_2(centroid);
                     Ok((vertex, centroid, distance))
@@ -62,16 +107,16 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
                         a.max_move = a.max_move.max(b.max_move);
                         Ok(a)
                     },
-                )?;
+                ).map_err(|_| eyre::eyre!("test"))?;
 
             if non_centered.vertex.is_empty() {
                 break Ok(self);
             }
 
-            println!(
-                "lloyd's algo iteration | max centroid distance: {:4.4}, vertices: {:<4}",
-                non_centered.max_move,
-                non_centered.centroid.len()
+            trace!(
+                i = i,
+                max_move = non_centered.max_move,
+                non_centered = non_centered.centroid.len(),
             );
 
             let NoneCenteredCellsFold {
@@ -80,11 +125,8 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
 
             vertex
                 .into_iter()
-                .try_for_each(|v| {
-                    self.remove(self.locate_vertex(v)?.fix());
-                    Some(())
-                })
-                .ok_or(())?;
+                .try_for_each(|v| self.locate_and_remove(v).map(drop))
+                .ok_or(()).map_err(|_| eyre::eyre!("test"))?;
 
             centroid
                 .into_iter()
@@ -92,7 +134,9 @@ impl CentralVoronoiTesselation for ConstrainedDelaunayTriangulation<Point2<f64>>
                     self.insert(c)?;
                     Ok::<(), InsertionError>(())
                 })
-                .map_err(|_| ())?;
+                .map_err(|_| ()).map_err(|_| eyre::eyre!("test"))?;
+
+            i += 1;
         }
     }
 }
@@ -115,24 +159,21 @@ pub fn poly_from_voronoi_face<DE, UE, F, T>(
 where
     T: spade::HasPosition,
     <T as spade::HasPosition>::Scalar:
-        spade::SpadeNum + num_traits::float::Float + PartialOrd + FromPrimitive,
+        spade::SpadeNum + num_traits::float::Float + PartialOrd + FromPrimitive + geo::GeoFloat,
 {
     let mut exterior = geo::LineString(Vec::with_capacity(face.adjacent_edges().count()));
-
     for edge in face.adjacent_edges() {
-        let vertex = edge.to().position().or(edge.from().position());
+        let a = edge.as_undirected().vertices();
 
-        if let Some(pos) = vertex {
+        if let Some(pos) = a[0].position() {
             let coord = geo::coord! {
-            x: <T::Scalar>::max(<T::Scalar>::min(pos.x, T::Scalar::from(14980.0)), T::Scalar::from(0.0)), y: pos.y.min(T::Scalar::from(14980.0)).max(T::Scalar::from(0.0))};
-
-            exterior.0.push(coord);
-        } else {
-            return Err(());
+                x: <T::Scalar>::max(<T::Scalar>::min(pos.x, T::Scalar::from(14980.0)), T::Scalar::from(0.0)),
+                y: pos.y.min(T::Scalar::from(14980.0)).max(T::Scalar::from(0.0))
+            };
+            exterior.0.push(coord)
         }
     }
-
-    geo::RemoveRepeatedPoints::remove_repeated_points_mut(&mut exterior);
+    exterior.remove_repeated_points_mut();
     exterior.close();
     Ok(geo::Polygon::new(exterior, vec![]))
 }

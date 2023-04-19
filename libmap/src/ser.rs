@@ -1,8 +1,8 @@
 use std::io::Write;
-
 use geojson::Feature;
+use serde::ser::Serialize;
 
-use crate::Error;
+use crate::{Error, maptri::refined::RefinedTesselation};
 
 #[derive(Debug)]
 pub struct WriteGeojson<W, T> {
@@ -35,7 +35,27 @@ where
         let features = input.into_iter().map(Into::<Feature>::into).collect::<Vec<_>>();
 
         info!("Writing {} features to geojson", features.len());
-        geojson::ser::to_feature_collection_writer(&mut self.writer, &features)
-        .map_err(|_| Error::GeoJsonWrite).map(Some)
+        Ok(Some(geojson::ser::to_feature_collection_writer(&mut self.writer, &features)?))
+    }
+}
+
+
+pub struct WriteTesselation;
+
+impl crate::pipe::Pipe for WriteTesselation {
+    type Input = RefinedTesselation;
+
+    type Output = ();
+
+    type Error = crate::Error;
+
+    fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
+        let mut s = flexbuffers::FlexbufferSerializer::new();
+        
+        input.serialize(&mut s)?;
+
+        let mut f = std::fs::File::create("navmesh.flat")?;
+        f.write_all(s.view())?;
+        Ok(Some(()))
     }
 }

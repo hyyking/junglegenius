@@ -1,8 +1,14 @@
 use std::{collections::HashMap, ops::Deref};
 
-use lyon_path::{Path, traits::{SvgPathBuilder, Build}};
+use lyon_path::{
+    traits::{Build, SvgPathBuilder},
+    Path,
+};
+use svg::node::Value;
 
-use crate::{pipe::Pipe, Error, svg::parse::Operation};
+use crate::{pipe::Pipe, svg::parse::Operation, Error};
+
+use super::SvgError;
 
 pub enum SvgOperation<S> {
     StartNewGroup(String),
@@ -24,18 +30,18 @@ impl<'a> Pipe for SvgReader<'a> {
         match event {
             svg::parser::Event::Tag("g", svg::node::element::tag::Type::Start, attrs) => {
                 Ok(Some(SvgOperation::StartNewGroup(
-                    attrs
-                        .get("inkscape:label")
-                        .or(attrs.get("id"))
-                        .unwrap()
-                        .to_string(),
+                    id_attrs(&attrs).ok_or(SvgError::MissingGroupId { attrs })?,
                 )))
             }
             svg::parser::Event::Tag("g", svg::node::element::tag::Type::End, _) => {
                 Ok(Some(SvgOperation::EndNewGroup))
             }
             svg::parser::Event::Tag("path", _, attrs) => {
-                let v = attrs.get("d").ok_or(Error::GetPath).unwrap().deref();
+                let v = attrs
+                    .get("d")
+                    .ok_or(SvgError::PathNotFound { attrs: attrs.clone() })?
+                    .deref();
+
                 let path = build_path(
                     v,
                     Path::svg_builder().transformed(lyon_geom::Transform::scale(
@@ -50,8 +56,6 @@ impl<'a> Pipe for SvgReader<'a> {
         }
     }
 }
-
-
 
 pub fn build_path(
     path_string: &str,
@@ -112,4 +116,11 @@ pub fn build_path(
             })
             .build()
     })
+}
+
+pub fn id_attrs(attrs: &HashMap<String, Value>) -> Option<String> {
+    attrs
+        .get("inkscape:label")
+        .or(attrs.get("id"))
+        .map(svg::node::Value::to_string)
 }
