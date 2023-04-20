@@ -260,6 +260,14 @@ pub fn draw_debug(
             .triangulation
             .unconstrained_inner_vertices()
         {
+
+            let pos = vertex.data();
+
+            frame.fill(
+                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x as f32, pos.y as f32), 16.0),
+                iced::Color::from_rgb(1.0, 1.0, 0.5),
+            );
+
             vertex.as_voronoi_face().adjacent_edges().for_each(|edge| {
                 let [a, b] = edge.as_undirected().vertices();
 
@@ -272,7 +280,7 @@ pub fn draw_debug(
                     ),
                     iced::widget::canvas::Stroke::default()
                         .with_color(iced::Color::from_rgb(0.0, 1.0, 0.0))
-                        .with_width(2.0),
+                        .with_width(1.0),
                 );
             });
         }
