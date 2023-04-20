@@ -105,6 +105,63 @@ where
     fn tag(&self) -> iced_native::widget::tree::Tag {
         iced_native::widget::tree::Tag::of::<P::State>()
     }
+
+    fn children(&self) -> Vec<Tree> {
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<WMessage, R>>::children(&self.image)
+    }
+
+    fn diff(&self, tree: &mut Tree) {
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<WMessage, R>>::diff(&self.image, tree)
+    }
+
+    fn operate(
+        &self,
+        state: &mut Tree,
+        layout: iced_native::Layout<'_>,
+        renderer: &R,
+        operation: &mut dyn iced_native::widget::Operation<WMessage>,
+    ) {
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<WMessage, R>>::operate(
+            &self.image,
+            state,
+            layout,
+            renderer,
+            operation,
+        )
+    }
+
+    fn on_event(
+        &mut self,
+        state: &mut Tree,
+        event: iced::Event,
+        layout: iced_native::Layout<'_>,
+        cursor_position: iced::Point,
+        renderer: &R,
+        clipboard: &mut dyn iced_native::Clipboard,
+        shell: &mut iced_native::Shell<'_, WMessage>,
+    ) -> iced::event::Status {
+        <iced_native::widget::svg::Svg<R> as iced_native::Widget<WMessage, R>>::on_event(
+            &mut self.image,
+            state,
+            event,
+            layout,
+            cursor_position,
+            renderer,
+            clipboard,
+            shell,
+        )
+    }
+
+    fn mouse_interaction(
+        &self,
+        _state: &Tree,
+        _layout: iced_native::Layout<'_>,
+        _cursor_position: iced::Point,
+        _viewport: &Rectangle,
+        _renderer: &R,
+    ) -> iced_native::mouse::Interaction {
+        iced_native::mouse::Interaction::Idle
+    }
 }
 
 pub struct CanvasOverlay<'a, R, Message, Theme, P>

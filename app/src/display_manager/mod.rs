@@ -16,6 +16,7 @@ const PANE_ID_COLOR_FOCUSED: Color = Color::from_rgb(1.0, 1.0, 1.0);
 pub struct AppGrid {
     panes: pane_grid::State<Pane>,
     minimap: pane_grid::Pane,
+    debug: Option<pane_grid::Pane>,
     focus: Option<pane_grid::Pane>,
 }
 
@@ -25,6 +26,7 @@ impl AppGrid {
         Self {
             panes,
             minimap,
+            debug: None,
             focus: None,
         }
     }
@@ -36,11 +38,12 @@ impl AppGrid {
                 let result = self.panes.split(axis, &pane, Pane::selection(selection));
 
                 if pane == self.minimap {
-                    if let Some((p, split)) = result {
-                        self.focus = Some(p);
-                        self.panes.resize(&split, 0.6);
+                    if let Some((_, ref split)) = result {
+                        self.panes.resize(split, 0.6);
                     }
-                    // self.focus = Some(pane);
+                }
+                if let Some((p, _)) = result {
+                    self.focus = Some(p);
                 }
             }
 
@@ -115,13 +118,32 @@ impl AppGrid {
                     }
                 }
             }
+            LayoutMessage::OpenDebug(axis) => {
+                if self.debug.is_none() {
+                    let pane = self.focus.unwrap_or(self.minimap);
+
+                    if let Some((pane, ref split)) = self.panes.split(axis, &pane, Pane::debug()) {
+                        if pane == self.minimap {
+                            self.panes.resize(split, 0.8);
+                        }
+                        self.debug = Some(pane);
+                        self.focus = Some(pane);
+                    }
+                }
+            },
+            LayoutMessage::CloseDebug => {
+                if let Some(debug) = self.debug.take() {
+                    self.panes.close(&debug);
+                    self.focus = None;
+                }
+            },
         }
         Command::none()
     }
 
     pub fn view<'a>(
         &'a self,
-        store: &'a crate::engine_renderer::EngineRenderer,
+        renderer: &'a crate::render_engine::EngineRenderer,
     ) -> iced::widget::PaneGrid<'a, Message> {
         let focus = self.focus;
         let total_panes = self.panes.len();
@@ -145,7 +167,7 @@ impl AppGrid {
                     .padding(2)
                     .style(style::minimap_bar as fn(&iced::Theme) -> container::Appearance),
 
-                    PaneType::EngineSelection(_) => {
+                    PaneType::EngineSelection(_) | PaneType::Debug => {
                         let pin_button =
                             button(text(if pane.is_pinned() { "Unpin" } else { "Pin" }).size(14))
                                 .on_press(Message::from(LayoutMessage::TogglePin(id)))
@@ -183,19 +205,29 @@ impl AppGrid {
                         pane_grid::Content::new(
                             container(crate::map_overlay::MapWidget::new(
                                 iced::widget::svg::Handle::from_path("map.svg"),
-                                store,
+                                renderer,
                             )).center_x().center_y().height(Length::Fill).width(Length::Fill).padding(10)
                         )
                     }
                     PaneType::EngineSelection(ref units) => {
                         let mut cards = column![
                             text("implement various engine queries and aggregations, would be cool to have a dropdown in the menu")
-                        ].spacing(10);
+                        ];
                         for unit in units {
                             cards = cards.push(text(format!("{:?}", unit)));
                         }
-                        pane_grid::Content::new(container(cards.padding(10)))
+                        pane_grid::Content::new(container(cards.spacing(10).padding(10)))
                     }
+                    PaneType::Debug => {
+                        let mut flags = column![text("this is a debug panel")];
+
+                        for flag in crate::render_engine::debug::DebugFlags::all().into_iter() {
+                            
+                            let toggle = iced::widget::toggler(format!("{flag}"), renderer.debug_flags.contains(flag), move |_| { Message::ToggleDebugFlag(flag) });
+                            flags = flags.push(toggle);
+                        }
+                        pane_grid::Content::new(container(flags.spacing(10).padding(10)))
+                    },
                 };
 
                 content.title_bar(title_bar).style(if is_focused {
