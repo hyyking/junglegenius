@@ -117,8 +117,8 @@ impl EntityStoreBuilder {
         EntityStore {
             entities: self.entities,
             position: self.position,
-            turret: self.turret,
-            inhibitor: self.inhibitor,
+            turrets: self.turret,
+            inhibitors: self.inhibitor,
             pathfinding: self.pathfinding,
             minions: self.minions,
             nav,

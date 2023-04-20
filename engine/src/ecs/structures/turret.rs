@@ -55,7 +55,7 @@ impl<'store> EntityRef<'store> for Turret<'store> {
 
 impl Turret<'_> {
     pub fn get_state(&self) -> &TurretComponent {
-        &self.store.turret[self.get_specific_unchecked().unwrap()].1
+        &self.store.turrets[self.get_specific_unchecked().unwrap()].1
     }
 }
 

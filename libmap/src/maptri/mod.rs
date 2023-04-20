@@ -2,18 +2,14 @@ pub mod cvt;
 pub mod refined;
 pub mod wall;
 
-use std::{collections::HashSet, io::Write};
-
 use geo::{
     BoundingRect, ConcaveHull, CoordsIter, Extremes, LineString, Point, Polygon,
     RemoveRepeatedPoints,
 };
-use geojson::Geometry;
+
 use rstar::{primitives::GeomWithData, PointDistance};
 use spade::{ConstrainedDelaunayTriangulation, Point2, Triangulation};
-use {cvt::poly_from_voronoi_face, wall::Wall};
-
-use rayon::prelude::*;
+use wall::Wall;
 
 use crate::pipe::Pipe;
 
@@ -25,6 +21,8 @@ struct NavMapTriangulation {
 }
 
 impl NavMapTriangulation {
+
+    #[tracing::instrument(skip(self, wall))]
     fn populate_walls(&mut self, wall: &Polygon, id: String) -> isize {
         const CLOSE: f64 = 4.0 * 4.0;
 
@@ -87,6 +85,8 @@ impl NavMapTriangulation {
                 interior
             })
             .collect::<Vec<_>>();
+
+        trace!(ext_len=ext.0.len(), int_len=int.len());
 
         let poly = Wall(Polygon::new(ext, int), id);
         let new = wall.coords_count() as isize - poly.0.coords_count() as isize;
@@ -178,7 +178,6 @@ impl NavMapTriangulation {
             let bot_left = cdt.insert(bound).unwrap();
             points.insert(GeomWithData::new([bound.x, bound.y], bot_left));
         }
-
 
         let hull = points
             .into_iter()

@@ -69,8 +69,8 @@ impl Engine for MinimapEngine {
         builder.spawn(inhibitor::InhibitorIndex::BLUE_MID);
         builder.spawn(inhibitor::InhibitorIndex::BLUE_BOT);
 
-        builder.spawn(nexus::Nexus::from(Team::Blue));
-        builder.spawn(nexus::Nexus::from(Team::Red));
+        builder.spawn(nexus::NexusIndex::from(Team::Blue));
+        builder.spawn(nexus::NexusIndex::from(Team::Red));
     }
 
     fn on_step(&mut self, store: &mut crate::ecs::store::EntityStore, step: GameTimer) {
@@ -140,6 +140,19 @@ impl Engine for MinimapEngine {
         }
 
         self.timer = new_timer;
+    }
+}
+
+impl MinimapEngine {
+    pub fn init() -> (Self, ecs::store::EntityStore) {
+        let mut store = ecs::builder::EntityStoreBuilder::new();
+        let mut engine = MinimapEngine {
+            timer: GameTimer::GAME_START,
+        };
+        engine.on_start(&mut store);
+    
+        let store = store.build();
+        (engine, store)
     }
 }
 

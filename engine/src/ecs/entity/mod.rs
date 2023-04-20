@@ -1,4 +1,5 @@
 use rstar::Envelope;
+use serde::ser::SerializeStruct;
 
 use crate::{
     core::Team,
@@ -63,6 +64,31 @@ pub trait EntityRef<'store> {
 
     fn radius(&self) -> f32 {
         self.position_component().radius
+    }
+}
+
+pub struct TempSerEntity<'store, T: EntityRef<'store>>(pub T, std::marker::PhantomData<&'store ()>);
+
+impl<'store, T: EntityRef<'store>> TempSerEntity<'store, T> {
+    pub fn new(v: T) -> Self {
+        Self(v, std::marker::PhantomData)
+    }
+}
+
+impl<'store, T> serde::Serialize for TempSerEntity<'store, T>
+where
+    T: EntityRef<'store>,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut s = serializer.serialize_struct("Entity", 4)?;
+        s.serialize_field("guid", &self.0.guid())?;
+        s.serialize_field("x", &self.0.position().x)?;
+        s.serialize_field("y", &self.0.position().y)?;
+        s.serialize_field("radius", &self.0.radius())?;
+        s.end()
     }
 }
 

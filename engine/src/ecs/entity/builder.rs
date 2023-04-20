@@ -20,3 +20,4 @@ pub trait EntityBuilder {
     fn pathfinding(&self) -> PathfindingComponent;
     fn specific(&self) -> SpecificComponentBuilder;
 }
+

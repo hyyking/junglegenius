@@ -72,6 +72,7 @@ impl PathSampler for PointSampler {
     fn rate(&self) -> Option<f32> { Some(self.rate) }
 }
 
+#[derive(Debug)]
 pub struct LineStringSampler {
     pub rate: f32,
 }

@@ -14,7 +14,10 @@ use crate::{
     units::minion::{Minion, MinionComponent, MinionMut},
 };
 
-use super::entity::UnitRemoval;
+use super::{
+    entity::UnitRemoval,
+    structures::nexus::{Nexus, NexusIndex},
+};
 
 type WithId<T> = (UnitId, T);
 
@@ -23,8 +26,8 @@ pub struct EntityStore {
     pub position: slab::Slab<WithId<PositionComponent>>,
     pub(crate) pathfinding: slab::Slab<WithId<PathfindingComponent>>,
 
-    pub(crate) turret: slab::Slab<WithId<TurretComponent>>,
-    pub(crate) inhibitor: slab::Slab<WithId<InhibitorComponent>>,
+    pub(crate) turrets: slab::Slab<WithId<TurretComponent>>,
+    pub(crate) inhibitors: slab::Slab<WithId<InhibitorComponent>>,
     pub(crate) minions: slab::Slab<WithId<MinionComponent>>,
     pub nav: NavigationMap,
 }
@@ -38,10 +41,10 @@ impl EntityStore {
         let specific = match entity.specific() {
             SpecificComponentBuilder::None => SpecificComponent::None,
             SpecificComponentBuilder::Turret(turret) => {
-                SpecificComponent::Turret(self.turret.insert((guid, turret)))
+                SpecificComponent::Turret(self.turrets.insert((guid, turret)))
             }
             SpecificComponentBuilder::Inhibitor(inhib) => {
-                SpecificComponent::Inhibitor(self.inhibitor.insert((guid, inhib)))
+                SpecificComponent::Inhibitor(self.inhibitors.insert((guid, inhib)))
             }
             SpecificComponentBuilder::Minion(minion) => {
                 SpecificComponent::Minion(self.minions.insert((guid, minion)))
@@ -136,12 +139,12 @@ impl EntityStore {
         match entity.specific {
             SpecificComponent::None => {}
             SpecificComponent::Turret(key) => {
-                self.turret
+                self.turrets
                     .try_remove(key)
                     .ok_or(format!("{}:{}", file!(), line!()))?;
             }
             SpecificComponent::Inhibitor(key) => {
-                self.inhibitor
+                self.inhibitors
                     .try_remove(key)
                     .ok_or(format!("{}:{}", file!(), line!()))?;
             }
@@ -160,6 +163,32 @@ impl EntityStore {
             .iter()
             .map(|(_, (id, _))| self.get_minion(id.clone()))
             .flatten()
+    }
+
+    pub fn turrets(&self) -> impl Iterator<Item = Turret<'_>> {
+        self.turrets
+            .iter()
+            .map(|(_, (id, _))| self.get_turret(id.clone()))
+            .flatten()
+    }
+
+    pub fn inhibitors(&self) -> impl Iterator<Item = Inhibitor<'_>> {
+        self.inhibitors
+            .iter()
+            .map(|(_, (id, _))| self.get_inhib(id.clone()))
+            .flatten()
+    }
+
+    pub fn get_nexus(&self, team: crate::core::Team) -> Option<Nexus<'_>> {
+        self.get_raw_by_id(NexusIndex::from(team).guid())
+            .map(|entity| Nexus {
+                store: self,
+                entity,
+            })
+    }
+
+    pub fn nexuses(&self) -> impl Iterator<Item = Nexus<'_>> {
+        self.get_nexus(crate::core::Team::Blue).into_iter().chain(self.get_nexus(crate::core::Team::Red))
     }
 
     pub fn minions_mut(&mut self) -> impl Iterator<Item = MinionMut<'_>> {
