@@ -11,7 +11,7 @@ use lyon::{
 
 use crate::{
     ecs::entity::EntityBuilder,
-    structures::{nexus::Nexus, turret::TurretIndex},
+    structures::{nexus::NexusIndex, turret::TurretIndex},
 };
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -114,8 +114,8 @@ pub fn top_lane_path(team: Team) -> Path {
     let blue_offset = Vector::new(150.0, 200.0);
     let red_offset = Vector::new(0.0, 200.0);
 
-    let blue_nexus = Nexus::from(Team::Blue).position().point - blue_offset;
-    let red_nexus = Nexus::from(Team::Red).position().point - red_offset;
+    let blue_nexus = NexusIndex::from(Team::Blue).position().point - blue_offset;
+    let red_nexus = NexusIndex::from(Team::Red).position().point - red_offset;
     let blue_top_outer = TurretIndex::BLUE_TOP_OUTER.position().point;
     let red_top_outer = TurretIndex::RED_TOP_OUTER.position().point;
 
@@ -146,8 +146,8 @@ pub fn top_lane_path(team: Team) -> Path {
 }
 
 pub fn mid_lane_path(team: Team) -> Path {
-    let blue_nexus = Nexus::from(Team::Blue).position().point;
-    let red_nexus = Nexus::from(Team::Red).position().point;
+    let blue_nexus = NexusIndex::from(Team::Blue).position().point;
+    let red_nexus = NexusIndex::from(Team::Red).position().point;
 
     let mut path = Path::builder();
     path.add_line_segment(&LineSegment {
@@ -166,8 +166,8 @@ pub fn bot_lane_path(team: Team) -> Path {
     let start_offset = Vector::new(200.0, 200.0);
     let end_offset = Vector::new(200.0, 0.0);
 
-    let start_nexus = Nexus::from(Team::Blue).position().point + start_offset;
-    let end_nexus = Nexus::from(Team::Red).position().point + end_offset;
+    let start_nexus = NexusIndex::from(Team::Blue).position().point + start_offset;
+    let end_nexus = NexusIndex::from(Team::Red).position().point + end_offset;
     let start_bot_outer = TurretIndex::BLUE_BOT_OUTER.position().point;
     let end_bot_outer = TurretIndex::RED_BOT_OUTER.position().point;
 

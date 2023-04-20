@@ -16,8 +16,11 @@ fn main() -> color_eyre::eyre::Result<()> {
             SvgReader::default()
                 .pipe(LineStringSampler { rate: 32.0 })
                 .pipe(IntExtGrouper::new())
-                .pipe(MeshMapper {}),
+                .pipe(MeshMapper),
         )
+        .chain(libmap::structures::StructureProducer::from_file("turrets.json"))
+        .chain(libmap::structures::StructureProducer::from_file("inhibs.json"))
+        .chain(libmap::structures::StructureProducer::from_file("nexuses.json"))
         .producer()
         .feed(
             TryCollector::new()

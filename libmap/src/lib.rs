@@ -15,6 +15,7 @@ pub mod mesh_mapper;
 pub mod pipe;
 pub mod ser;
 pub mod svg;
+pub mod structures;
 
 
 type Error = eyre::Report;

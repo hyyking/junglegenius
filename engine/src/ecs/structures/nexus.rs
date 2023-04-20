@@ -1,24 +1,24 @@
 use crate::{
     core::Team,
     ecs::{
-        entity::{EntityBuilder, SpecificComponentBuilder},
+        entity::{EntityBuilder, SpecificComponentBuilder, EntityRef, Entity},
         generic::{pathfinding::PathfindingComponent, PositionComponent},
-        UnitId,
+        UnitId, store::EntityStore,
     },
 };
 
 #[derive(Debug, Clone)]
-pub struct Nexus {
+pub struct NexusIndex {
     pub(crate) team: Team,
 }
 
-impl From<Team> for Nexus {
+impl From<Team> for NexusIndex {
     fn from(team: Team) -> Self {
         Self { team }
     }
 }
 
-impl EntityBuilder for Nexus {
+impl EntityBuilder for NexusIndex {
     fn guid(&self) -> UnitId {
         UnitId::from(self)
     }
@@ -38,5 +38,31 @@ impl EntityBuilder for Nexus {
 
     fn specific(&self) -> SpecificComponentBuilder {
         SpecificComponentBuilder::None
+    }
+}
+
+
+
+pub struct Nexus<'a> {
+    pub(crate) store: &'a crate::ecs::store::EntityStore,
+    pub(crate) entity: &'a Entity,
+}
+
+impl<'a> std::fmt::Debug for Nexus<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Nexus")
+            .field("id", &self.entity.guid)
+            .field("position", &self.position())
+            .finish()
+    }
+}
+
+impl<'store> EntityRef<'store> for Nexus<'store> {
+    fn store_ref(&self) -> &'store EntityStore {
+        self.store
+    }
+
+    fn entity(&self) -> &Entity {
+        self.entity
     }
 }

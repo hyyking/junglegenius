@@ -25,7 +25,7 @@ pub trait Pipe {
 }
 
 #[derive(Debug)]
-pub struct TryCollector<P: Producer , C> {
+pub struct TryCollector<P: Producer, C> {
     _s: std::marker::PhantomData<(P, C)>,
 }
 
@@ -36,7 +36,6 @@ impl<P: Producer, C> TryCollector<P, C> {
         }
     }
 }
-
 
 impl<O, P, C> Pipe for TryCollector<P, C>
 where
@@ -94,6 +93,31 @@ pub trait Producer {
         P: for<'a> Pipe<Input = Self::Item>,
     {
         ChainedPipe::new(self, other)
+    }
+
+    fn chain<P>(self, other: P) -> ChainedProducer<Self, P>
+    where
+        Self: Sized,
+        P: Producer<Item = Self::Item>,
+    {
+        ChainedProducer { a: self, b: other }
+    }
+}
+
+pub struct ChainedProducer<A, B> {
+    a: A,
+    b: B,
+}
+
+impl<A, B> Producer for ChainedProducer<A, B>
+where
+    A: Producer,
+    B: Producer<Item = A::Item>,
+{
+    type Item = A::Item;
+
+    fn produce(&mut self) -> Option<Self::Item> {
+        self.a.produce().or_else(|| self.b.produce())
     }
 }
 

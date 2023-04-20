@@ -130,8 +130,8 @@ impl From<crate::ecs::structures::inhibitor::InhibitorIndex> for UnitId {
     }
 }
 
-impl From<&crate::ecs::structures::nexus::Nexus> for UnitId {
-    fn from(value: &crate::ecs::structures::nexus::Nexus) -> Self {
+impl From<&crate::ecs::structures::nexus::NexusIndex> for UnitId {
+    fn from(value: &crate::ecs::structures::nexus::NexusIndex) -> Self {
         let team = value.team;
         let lane = Lane::Nexus;
 

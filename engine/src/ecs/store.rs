@@ -14,7 +14,10 @@ use crate::{
     units::minion::{Minion, MinionComponent, MinionMut},
 };
 
-use super::entity::UnitRemoval;
+use super::{
+    entity::UnitRemoval,
+    structures::nexus::{Nexus, NexusIndex},
+};
 
 type WithId<T> = (UnitId, T);
 
@@ -167,6 +170,25 @@ impl EntityStore {
             .iter()
             .map(|(_, (id, _))| self.get_turret(id.clone()))
             .flatten()
+    }
+
+    pub fn inhibitors(&self) -> impl Iterator<Item = Inhibitor<'_>> {
+        self.inhibitors
+            .iter()
+            .map(|(_, (id, _))| self.get_inhib(id.clone()))
+            .flatten()
+    }
+
+    pub fn get_nexus(&self, team: crate::core::Team) -> Option<Nexus<'_>> {
+        self.get_raw_by_id(NexusIndex::from(team).guid())
+            .map(|entity| Nexus {
+                store: self,
+                entity,
+            })
+    }
+
+    pub fn nexuses(&self) -> impl Iterator<Item = Nexus<'_>> {
+        self.get_nexus(crate::core::Team::Blue).into_iter().chain(self.get_nexus(crate::core::Team::Red))
     }
 
     pub fn minions_mut(&mut self) -> impl Iterator<Item = MinionMut<'_>> {

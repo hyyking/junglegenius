@@ -29,13 +29,13 @@ where
 
     type Error = Error;
 
+    #[tracing::instrument("geojson_ser", skip(self, input), fields(len=input.len()), err)]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         let features = input
             .into_iter()
             .map(Into::<Feature>::into)
             .collect::<Vec<_>>();
-
-        info!("Writing {} features to geojson", features.len());
+        info!("Serializing geojson ...");
         Ok(Some(geojson::ser::to_feature_collection_writer(
             &mut self.writer,
             &features,
@@ -69,8 +69,10 @@ where
 
     type Error = crate::Error;
 
+    #[tracing::instrument("flexbuffer_ser", skip(self, input), err)]
     fn process(&mut self, input: Self::Input) -> Result<Option<Self::Output>, Self::Error> {
         let mut s = flexbuffers::FlexbufferSerializer::new();
+        info!("Serializing flexbuffer ...");
         input.serialize(&mut s)?;
         Ok(Some(self.writer.write_all(s.view())?))
     }
