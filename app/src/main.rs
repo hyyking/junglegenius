@@ -7,13 +7,13 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Application, Color, Command, Element, Length, Settings, Subscription};
 use iced_native::{event, subscription, Event};
 
-mod engine_renderer;
-mod grid;
+mod render_engine;
+mod display_manager;
 mod map_overlay;
 mod message;
 mod utils;
 
-use grid::AppGrid;
+use display_manager::AppGrid;
 use message::{LayoutMessage, Message};
 
 pub fn main() -> iced::Result {
@@ -22,7 +22,7 @@ pub fn main() -> iced::Result {
 
 struct JungleGenius {
     appgrid: AppGrid,
-    renderer: engine_renderer::EngineRenderer,
+    renderer: render_engine::EngineRenderer,
 }
 
 impl Application for JungleGenius {
@@ -35,7 +35,7 @@ impl Application for JungleGenius {
         (
             Self {
                 appgrid: AppGrid::new(),
-                renderer: engine_renderer::EngineRenderer::game_start(),
+                renderer: render_engine::EngineRenderer::game_start(),
             },
             iced::Command::batch([
                 iced::window::maximize(true),
@@ -57,6 +57,10 @@ impl Application for JungleGenius {
                 self.renderer.step_right();
                 Command::none()
             }
+            Message::ToggleDebugFlag(flag) => {
+                self.renderer.toggle_flag(flag);
+                Command::none()
+            },
         }
     }
 

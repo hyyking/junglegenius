@@ -1,3 +1,5 @@
+pub mod debug;
+
 use iced::keyboard::KeyCode;
 use iced::widget::canvas::Program;
 
@@ -10,9 +12,12 @@ use engine::ecs::structures::MAP_BOUNDS;
 use engine::nav_engine::CollisionBox;
 use engine::MinimapEngine;
 
+use self::debug::DebugFlags;
+
 pub struct EngineRenderer {
     pub store: EntityStore,
     pub engine: MinimapEngine,
+    pub debug_flags: debug::DebugFlags,
     current_frame: iced::widget::canvas::Cache,
     debug: iced::widget::canvas::Cache,
     hull: geo::Polygon,
@@ -44,6 +49,7 @@ impl EngineRenderer {
         Self {
             store,
             engine,
+            debug_flags: debug::DebugFlags::empty(),
             current_frame: iced::widget::canvas::Cache::new(),
             debug: iced::widget::canvas::Cache::new(),
             hull,
@@ -58,13 +64,28 @@ impl EngineRenderer {
         );
         self.current_frame.clear();
     }
+
+    pub fn toggle_flag(&mut self, flag: DebugFlags) {
+        self.debug_flags.toggle(flag);
+        self.debug.clear()
+    }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Selection {
     append_mode: bool,
     debug: bool,
     state: SelectionState,
+}
+
+impl Default for Selection {
+    fn default() -> Self {
+        Self {
+            append_mode: false,
+            debug: false,
+            state: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -78,12 +99,6 @@ pub enum SelectionState {
     },
 }
 
-/*
-# stocker la selection => engine/src/ecs/store.rs
-reference à la selection => app/src/grid/pane.rs
-afficher la selection => app/src/grid/mod.rs
-création de la sélection => app/src/engine_renderer.rs
- */
 impl Program<Message> for EngineRenderer {
     type State = Selection;
 
@@ -100,11 +115,21 @@ impl Program<Message> for EngineRenderer {
                 state.append_mode = m.contains(iced::keyboard::Modifiers::CTRL);
             }
 
-            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::KeyReleased {
                 key_code: KeyCode::P,
                 ..
             }) => {
                 state.debug = !state.debug;
+
+                let message = if state.debug {
+                    Message::Layout(LayoutMessage::OpenDebug(
+                        iced_native::widget::pane_grid::Axis::Vertical,
+                    ))
+                } else {
+                    Message::Layout(LayoutMessage::CloseDebug)
+                };
+                dbg!(("SET", state.debug));
+                return (iced::widget::canvas::event::Status::Ignored, Some(message));
             }
             iced::widget::canvas::Event::Mouse(mouseev) => {
                 let Some(position) = cursor.position_in(&bounds) else { return (iced::widget::canvas::event::Status::Ignored, None) };
@@ -238,66 +263,15 @@ impl Program<Message> for EngineRenderer {
         }
 
         let mut frames = vec![game_frame, selection_frame.into_geometry()];
-
+        
+        dbg!(("READ", state.debug));
         if state.debug {
-            frames.push(draw_debug(self, &bounds))
+            frames.push(self.debug.draw(bounds.size(), |frame| {
+                frame.scale(frame.width() / MAP_BOUNDS.width);
+                debug::draw_debug(frame, self);
+            }))
         }
 
         frames
     }
-}
-
-pub fn draw_debug(
-    renderer: &EngineRenderer,
-    bounds: &iced::Rectangle,
-) -> iced::widget::canvas::Geometry {
-    renderer.debug.draw(bounds.size(), |frame| {
-        frame.scale(frame.width() / MAP_BOUNDS.width);
-
-        for vertex in renderer
-            .store
-            .nav
-            .triangulation
-            .unconstrained_inner_vertices()
-        {
-
-            let pos = vertex.data();
-
-            frame.fill(
-                &iced::widget::canvas::Path::circle(iced::Point::new(pos.x as f32, pos.y as f32), 16.0),
-                iced::Color::from_rgb(1.0, 1.0, 0.5),
-            );
-
-            vertex.as_voronoi_face().adjacent_edges().for_each(|edge| {
-                let [a, b] = edge.as_undirected().vertices();
-
-                let (a, b) = (a.position().unwrap(), b.position().unwrap());
-
-                frame.stroke(
-                    &iced::widget::canvas::Path::line(
-                        iced::Point::new(a.x as f32, a.y as f32),
-                        iced::Point::new(b.x as f32, b.y as f32),
-                    ),
-                    iced::widget::canvas::Stroke::default()
-                        .with_color(iced::Color::from_rgb(0.0, 1.0, 0.0))
-                        .with_width(1.0),
-                );
-            });
-        }
-
-        for line in renderer.hull.exterior().lines() {
-            let start = line.start;
-            let end = line.end;
-
-            frame.stroke(
-                &iced::widget::canvas::Path::line(
-                    iced::Point::new(start.x as f32, start.y as f32),
-                    iced::Point::new(end.x as f32, end.y as f32),
-                ),
-                iced::widget::canvas::Stroke::default()
-                    .with_color(iced::Color::from_rgb(0.0, 0.0, 1.0))
-                    .with_width(2.0),
-            )
-        }
-    })
 }

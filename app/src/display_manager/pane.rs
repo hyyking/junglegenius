@@ -16,6 +16,7 @@ pub struct PaneAttributes {
 pub enum PaneType {
     Minimap,
     EngineSelection(HashSet<engine::ecs::UnitId>),
+    Debug,
 }
 
 impl std::fmt::Debug for PaneType {
@@ -23,11 +24,19 @@ impl std::fmt::Debug for PaneType {
         match self {
             Self::Minimap => write!(f, "Minimap"),
             Self::EngineSelection(_) => write!(f, "Selection"),
+            Self::Debug => write!(f, "Debug"),
         }
     }
 }
 
 impl Pane {
+    pub fn debug() -> Self {
+        Self {
+            kind: PaneType::Debug,
+            attrs: PaneAttributes { pinned: false, closable: false }
+        }
+    }
+
     pub fn minimap() -> Self {
         Self {
             kind: PaneType::Minimap,

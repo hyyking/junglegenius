@@ -1,9 +1,12 @@
 use iced::widget::pane_grid;
 
+use crate::render_engine::debug::DebugFlags;
+
 #[derive(Debug, Clone)]
 pub enum Message {
     Layout(LayoutMessage),
     StepRight,
+    ToggleDebugFlag(DebugFlags)
     // UnselectCards,
     // SelectCards(iced::Point, Vec<crate::information::Card>),
 }
@@ -28,4 +31,7 @@ pub enum LayoutMessage {
     SplitFocused(pane_grid::Axis),
     FocusAdjacent(pane_grid::Direction),
     CloseFocused,
+
+    OpenDebug(pane_grid::Axis),
+    CloseDebug,
 }
