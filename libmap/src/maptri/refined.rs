@@ -55,7 +55,7 @@ impl RefinedTesselation {
                 v.as_voronoi_face()
                     .adjacent_edges()
                     .find(|v| {
-                        //v.as_delaunay_edge().is_constraint_edge() || 
+                        v.as_delaunay_edge().is_constraint_edge() || 
                         matches!(
                                 v.as_undirected().vertices(),
                                 [

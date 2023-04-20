@@ -18,9 +18,7 @@ fn main() -> color_eyre::eyre::Result<()> {
                 .pipe(IntExtGrouper::new())
                 .pipe(MeshMapper),
         )
-        .chain(libmap::structures::StructureProducer::from_file("turrets.json"))
-        .chain(libmap::structures::StructureProducer::from_file("inhibs.json"))
-        .chain(libmap::structures::StructureProducer::from_file("nexuses.json"))
+        .chain(libmap::structures::StructureProducer::from_file("structures.json", 32.0))
         .producer()
         .feed(
             TryCollector::new()

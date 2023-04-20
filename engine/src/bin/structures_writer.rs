@@ -1,26 +1,28 @@
 use engine::ecs::entity::TempSerEntity;
+use serde::{Serializer, ser::SerializeTuple};
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (_, store) = engine::MinimapEngine::init();
+    
+    let mut f = std::fs::File::create("structures.json")?;
+    let mut ser = serde_json::ser::Serializer::new(&mut f);
 
-    let turrets = std::fs::File::create("turrets.json").unwrap();
-    serde_json::ser::to_writer_pretty(
-        turrets,
-        &store.turrets().map(TempSerEntity::new).collect::<Vec<_>>(),
-    )
-    .unwrap();
+    let mut seq = ser.serialize_seq(None)?;
 
-    let inhibs = std::fs::File::create("inhibs.json").unwrap();
-    serde_json::ser::to_writer_pretty(
-        inhibs,
-        &store.inhibitors().map(TempSerEntity::new).collect::<Vec<_>>(),
-    )
-    .unwrap();
+    for turret in store.turrets().map(TempSerEntity::new) {
+        seq.serialize_element(&turret)?;
+    }
 
-    let nexuses = std::fs::File::create("nexuses.json").unwrap();
-    serde_json::ser::to_writer_pretty(
-        nexuses,
-        &store.nexuses().map(TempSerEntity::new).collect::<Vec<_>>(),
-    )
-    .unwrap();
+    for inhib in store.inhibitors().map(TempSerEntity::new) {
+        seq.serialize_element(&inhib)?;
+    }
+
+    for nexus in store.nexuses().map(TempSerEntity::new) {
+        seq.serialize_element(&nexus)?;
+    }
+
+    seq.end()?;
+
+
+    Ok(())
 }
