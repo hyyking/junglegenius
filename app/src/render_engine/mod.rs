@@ -115,7 +115,7 @@ impl Program<Message> for EngineRenderer {
                 state.append_mode = m.contains(iced::keyboard::Modifiers::CTRL);
             }
 
-            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::KeyReleased {
+            iced::widget::canvas::Event::Keyboard(iced::keyboard::Event::KeyPressed {
                 key_code: KeyCode::P,
                 ..
             }) => {
@@ -128,7 +128,6 @@ impl Program<Message> for EngineRenderer {
                 } else {
                     Message::Layout(LayoutMessage::CloseDebug)
                 };
-                dbg!(("SET", state.debug));
                 return (iced::widget::canvas::event::Status::Ignored, Some(message));
             }
             iced::widget::canvas::Event::Mouse(mouseev) => {
@@ -264,7 +263,6 @@ impl Program<Message> for EngineRenderer {
 
         let mut frames = vec![game_frame, selection_frame.into_geometry()];
         
-        dbg!(("READ", state.debug));
         if state.debug {
             frames.push(self.debug.draw(bounds.size(), |frame| {
                 frame.scale(frame.width() / MAP_BOUNDS.width);
