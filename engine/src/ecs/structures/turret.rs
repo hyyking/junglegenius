@@ -13,7 +13,7 @@ use super::MAP_BOUNDS;
 
 #[derive(Debug)]
 pub struct TurretComponent {
-    pub(crate) state: TurretState,
+    pub(crate) _state: TurretState,
 }
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq)]
@@ -141,11 +141,11 @@ impl EntityBuilder for TurretIndex {
     }
 
     fn specific(&self) -> SpecificComponentBuilder {
-        let state = match self {
+        let _state = match self {
             TurretIndex(_, _, TurretKind::Outer) => TurretState::UpWithPlates { plates: 5 },
             _ => TurretState::Up,
         };
-        SpecificComponentBuilder::Turret(TurretComponent { state })
+        SpecificComponentBuilder::Turret(TurretComponent { _state })
     }
 }
 

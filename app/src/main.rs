@@ -1,3 +1,5 @@
+#![feature(array_windows)]
+
 use iced::alignment::Alignment;
 use iced::executor;
 use iced::keyboard;
@@ -38,7 +40,7 @@ impl Application for JungleGenius {
                 renderer: render_engine::EngineRenderer::game_start(),
             },
             iced::Command::batch([
-                iced::window::maximize(true),
+                //iced::window::maximize(true),
                 iced::window::request_user_attention(Some(
                     iced::window::UserAttention::Informational,
                 )),

@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
-use spade::{ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation, handles::{FixedFaceHandle, InnerTag, VertexHandle}, CdtEdge};
+use spade::{
+    handles::{FixedFaceHandle, InnerTag, VertexHandle},
+    CdtEdge, ConstrainedDelaunayTriangulation, Point2, RefinementParameters, Triangulation,
+};
 
 use crate::pipe::Pipe;
-
 
 pub struct Refine;
 
@@ -38,7 +40,7 @@ impl Pipe for Refine {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct RefinedTesselation {
-    pub(crate) excluded: HashSet<FixedFaceHandle<InnerTag>>,
+    pub excluded: HashSet<FixedFaceHandle<InnerTag>>,
     pub cdt: ConstrainedDelaunayTriangulation<Point2<f64>>,
 }
 
@@ -51,26 +53,28 @@ impl RefinedTesselation {
             .filter(|f| !self.excluded.contains(&f.fix()))
             .map(|f| f.vertices())
             .flatten()
-            .filter(|v| {
-                v.as_voronoi_face()
-                    .adjacent_edges()
-                    .find(|v| {
-                        v.as_delaunay_edge().is_constraint_edge() || 
-                        matches!(
-                                v.as_undirected().vertices(),
-                                [
-                                    spade::handles::VoronoiVertex::Outer(_),
-                                    spade::handles::VoronoiVertex::Outer(_)
-                                ] | [
-                                    spade::handles::VoronoiVertex::Inner(_),
-                                    spade::handles::VoronoiVertex::Outer(_)
-                                ] | [
-                                    spade::handles::VoronoiVertex::Outer(_),
-                                    spade::handles::VoronoiVertex::Inner(_)
-                                ]
-                            )
-                    })
-                    .is_none()
+            .filter(|v| { self.keep_vertex(v) })
+    }
+
+    pub fn keep_vertex(&self, v: &VertexHandle<'_, Point2<f64>, (), CdtEdge<()>, ()>) -> bool {
+        v.as_voronoi_face()
+            .adjacent_edges()
+            .find(|v| {
+                v.as_delaunay_edge().is_constraint_edge()
+                    || matches!(
+                        v.as_undirected().vertices(),
+                        [
+                            spade::handles::VoronoiVertex::Outer(_),
+                            spade::handles::VoronoiVertex::Outer(_)
+                        ] | [
+                            spade::handles::VoronoiVertex::Inner(_),
+                            spade::handles::VoronoiVertex::Outer(_)
+                        ] | [
+                            spade::handles::VoronoiVertex::Outer(_),
+                            spade::handles::VoronoiVertex::Inner(_)
+                        ]
+                    )
             })
+            .is_none()
     }
 }

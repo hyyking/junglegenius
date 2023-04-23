@@ -185,18 +185,6 @@ impl NavMapTriangulation {
             .collect::<geo::MultiPoint>()
             .concave_hull(0.01);
 
-        let f = std::fs::File::create("hull.json").unwrap();
-        geojson::ser::to_feature_writer(
-            f,
-            &geojson::Feature {
-                bbox: None,
-                geometry: Some((&hull).into()),
-                id: None,
-                properties: None,
-                foreign_members: None,
-            },
-        )
-        .unwrap();
         cdt.add_constraint_edges(
             hull.coords_iter().map(|coord| {
                 spade::mitigate_underflow(Point2::new(

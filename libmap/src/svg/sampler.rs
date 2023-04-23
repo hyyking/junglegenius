@@ -1,4 +1,4 @@
-use geo::{Coord, LineString};
+use geo::{LineString};
 use lyon_algorithms::walk::{RegularPattern, WalkerEvent};
 use lyon_path::Path;
 

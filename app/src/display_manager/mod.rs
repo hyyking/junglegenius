@@ -34,10 +34,10 @@ impl AppGrid {
     pub fn update(&mut self, message: LayoutMessage) -> Command<Message> {
         match message {
             LayoutMessage::Split(axis, selection) => {
-                let pane = self.focus.unwrap_or(self.minimap);
-                let result = self.panes.split(axis, &pane, Pane::selection(selection));
+                let base = self.focus.unwrap_or(self.minimap);
+                let result = self.panes.split(axis, &base, Pane::selection(selection));
 
-                if pane == self.minimap {
+                if base == self.minimap {
                     if let Some((_, ref split)) = result {
                         self.panes.resize(split, 0.6);
                     }
@@ -120,10 +120,10 @@ impl AppGrid {
             }
             LayoutMessage::OpenDebug(axis) => {
                 if self.debug.is_none() {
-                    let pane = self.focus.unwrap_or(self.minimap);
+                    let base = self.focus.unwrap_or(self.minimap);
 
-                    if let Some((pane, ref split)) = self.panes.split(axis, &pane, Pane::debug()) {
-                        if pane == self.minimap {
+                    if let Some((pane, ref split)) = self.panes.split(axis, &base, Pane::debug()) {
+                        if base == self.minimap {
                             self.panes.resize(split, 0.8);
                         }
                         self.debug = Some(pane);
@@ -132,9 +132,11 @@ impl AppGrid {
                 }
             },
             LayoutMessage::CloseDebug => {
+                if self.focus == self.debug {
+                    self.focus = None;
+                }
                 if let Some(debug) = self.debug.take() {
                     self.panes.close(&debug);
-                    self.focus = None;
                 }
             },
         }

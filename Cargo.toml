@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["app", "engine", "oobb", "libmap"]
+
+
+[workspace.dependencies]
+spade = { git = "https://github.com/Stoeoef/spade.git", branch = "delaunay_refinement", features=["serde"] }

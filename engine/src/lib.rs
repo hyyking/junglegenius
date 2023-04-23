@@ -1,6 +1,8 @@
 #![feature(let_chains)]
 #![feature(stmt_expr_attributes)]
 #![feature(lazy_cell)]
+#![feature(array_windows)]
+#![feature(iter_array_chunks)]
 
 pub mod ecs;
 

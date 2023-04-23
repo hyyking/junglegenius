@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use geo::LineString;
-use lyon_path::{traits::Build, Winding};
+use lyon_path::Winding;
 
 use crate::{
     intextgrouper::PolySample,

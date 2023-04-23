@@ -1,7 +1,7 @@
 pub mod debug;
 
 use iced::keyboard::KeyCode;
-use iced::widget::canvas::Program;
+use iced::widget::canvas::{Program};
 
 use crate::message::{LayoutMessage, Message};
 
@@ -20,7 +20,6 @@ pub struct EngineRenderer {
     pub debug_flags: debug::DebugFlags,
     current_frame: iced::widget::canvas::Cache,
     debug: iced::widget::canvas::Cache,
-    hull: geo::Polygon,
 }
 
 impl EngineRenderer {
@@ -38,21 +37,12 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(60)),
         );
 
-        let file = std::fs::File::open("hull.json").unwrap();
-        let hull = geojson::Feature::try_from(geojson::GeoJson::from_reader(&file).unwrap())
-            .unwrap()
-            .geometry
-            .unwrap()
-            .try_into()
-            .unwrap();
-
         Self {
             store,
             engine,
             debug_flags: debug::DebugFlags::empty(),
             current_frame: iced::widget::canvas::Cache::new(),
             debug: iced::widget::canvas::Cache::new(),
-            hull,
         }
     }
 
@@ -63,6 +53,7 @@ impl EngineRenderer {
             GameTimer(std::time::Duration::from_secs(1)),
         );
         self.current_frame.clear();
+        self.debug.clear();
     }
 
     pub fn toggle_flag(&mut self, flag: DebugFlags) {
@@ -71,22 +62,13 @@ impl EngineRenderer {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Selection {
     append_mode: bool,
     debug: bool,
     state: SelectionState,
 }
 
-impl Default for Selection {
-    fn default() -> Self {
-        Self {
-            append_mode: false,
-            debug: false,
-            state: Default::default(),
-        }
-    }
-}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum SelectionState {
@@ -216,10 +198,16 @@ impl Program<Message> for EngineRenderer {
         state: &Self::State,
         _theme: &iced::Theme,
         bounds: iced::Rectangle,
-        _cursor: iced::widget::canvas::Cursor,
+        cursor: iced::widget::canvas::Cursor,
     ) -> Vec<iced::widget::canvas::Geometry> {
+        let scale = bounds.size().width / MAP_BOUNDS.width;
+        let cursor = cursor.position_in(&bounds).map(|position| iced::Point::new(position.x / scale, position.y / scale));
+
+        
+
+
         let game_frame = self.current_frame.draw(bounds.size(), |frame| {
-            frame.scale(frame.width() / MAP_BOUNDS.width);
+            frame.scale(scale);
 
             for (position, guid) in self.store.nav.tree.iter().filter_map(|c| match c {
                 CollisionBox::Unit { position, guid } => Some((position, guid)),
@@ -240,34 +228,34 @@ impl Program<Message> for EngineRenderer {
             }
         });
 
-        let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());
-        selection_frame.scale(selection_frame.width() / MAP_BOUNDS.width);
-
-        match state.state {
-            SelectionState::Rectangle { a, b } => {
-                let selection = iced::widget::canvas::Path::rectangle(
-                    iced::Point::new(a.x.min(b.x), a.y.min(b.y)),
-                    iced::Size::new(a.x.max(b.x) - a.x.min(b.x), a.y.max(b.y) - a.y.min(b.y)),
-                );
-
-                selection_frame.fill(&selection, iced::Color::from_rgba8(0x2d, 0xbf, 0xb8, 0.4));
-                selection_frame.stroke(
-                    &selection,
-                    iced::widget::canvas::Stroke::default()
-                        .with_width(2.0)
-                        .with_color(iced::Color::from_rgba8(0x2d, 0xbf, 0xb8, 1.0)),
-                );
-            }
-            _ => {}
-        }
-
-        let mut frames = vec![game_frame, selection_frame.into_geometry()];
+        let mut frames = vec![game_frame];
         
         if state.debug {
-            frames.push(self.debug.draw(bounds.size(), |frame| {
-                frame.scale(frame.width() / MAP_BOUNDS.width);
-                debug::draw_debug(frame, self);
-            }))
+            frames.extend(debug::draw_debug(&self.debug, &self.debug_flags, &self.store, bounds, scale, cursor).into_iter());
+        }
+
+        if state.state != SelectionState::NoSelection {
+            let mut selection_frame = iced::widget::canvas::Frame::new(bounds.size());
+            selection_frame.scale(scale);
+    
+            match state.state {
+                SelectionState::Rectangle { a, b } => {
+                    let selection = iced::widget::canvas::Path::rectangle(
+                        iced::Point::new(a.x.min(b.x), a.y.min(b.y)),
+                        iced::Size::new(a.x.max(b.x) - a.x.min(b.x), a.y.max(b.y) - a.y.min(b.y)),
+                    );
+    
+                    selection_frame.fill(&selection, iced::Color::from_rgba8(0x2d, 0xbf, 0xb8, 0.4));
+                    selection_frame.stroke(
+                        &selection,
+                        iced::widget::canvas::Stroke::default()
+                            .with_width(2.0)
+                            .with_color(iced::Color::from_rgba8(0x2d, 0xbf, 0xb8, 1.0)),
+                    );
+                }
+                _ => {}
+            }
+            frames.push(selection_frame.into_geometry())
         }
 
         frames
