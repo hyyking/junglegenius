@@ -4,6 +4,7 @@ use iced::alignment::Alignment;
 use iced::executor;
 use iced::keyboard;
 use iced::theme::Theme;
+use iced::widget::horizontal_space;
 use iced::widget::pane_grid::{self};
 use iced::widget::{button, column, container, row, text};
 use iced::{Application, Color, Command, Element, Length, Settings, Subscription};
@@ -93,6 +94,8 @@ impl Application for JungleGenius {
         let player = row![
             button(text(">")),
             button(text("+")).on_press(Message::StepRight),
+            horizontal_space(10.0),
+            text(format!("{:>02}:{:<02}", self.renderer.engine.timer.as_secs() / 60, self.renderer.engine.timer.as_secs() % 60))
         ]
         .height(Length::Fill)
         .width(Length::Fill)

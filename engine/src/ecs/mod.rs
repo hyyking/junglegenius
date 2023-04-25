@@ -48,17 +48,17 @@ impl UnitId {
         let mut offset = 0;
         id |= match team {
             None => 0 << offset,
-            Some(Team::Blue) => 1 << offset,
-            Some(Team::Red) => 2 << offset,
-        };
+            Some(Team::Blue) => 1,
+            Some(Team::Red) => 2,
+        } << offset;
         offset += 4;
         id |= match lane {
             None => 0 << offset,
-            Some(Lane::Top) => 1 << offset,
-            Some(Lane::Mid) => 2 << offset,
-            Some(Lane::Bot) => 3 << offset,
-            Some(Lane::Nexus) => 4 << offset,
-        };
+            Some(Lane::Top) => 1,
+            Some(Lane::Mid) => 2,
+            Some(Lane::Bot) => 3,
+            Some(Lane::Nexus) => 4,
+        } << offset;
         offset += 4;
         (id, offset)
     }
@@ -90,6 +90,17 @@ impl UnitId {
         match masked {
             1 => Some(Team::Blue),
             2 => Some(Team::Red),
+            _ => None,
+        }
+    }
+
+    pub fn lane(&self) -> Option<Lane> {
+        let masked = (self.0 & (0b1111 << 4)) >> 4;
+        match masked {
+            1 => Some(Lane::Top),
+            2 => Some(Lane::Mid),
+            3 => Some(Lane::Bot),
+            4 => Some(Lane::Nexus),
             _ => None,
         }
     }

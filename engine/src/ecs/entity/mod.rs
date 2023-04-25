@@ -17,6 +17,8 @@ use crate::{
 mod builder;
 pub use builder::{EntityBuilder, SpecificComponentBuilder};
 
+use super::generic::pathfinding::compute_path;
+
 #[derive(Debug, Clone)]
 pub enum SpecificComponent {
     None,
@@ -64,6 +66,30 @@ pub trait EntityRef<'store> {
 
     fn radius(&self) -> f32 {
         self.position_component().radius
+    }
+
+    fn path_to_latest_objective(&self) -> Result<Option<lyon::path::Path>, PathfindError> {
+        let pos = self.position();
+
+        let component = self.pathfinding_component();
+        let Some(objective) = component.objectives.front() else {  return Ok(None) };
+
+        let path = compute_path(pos.clone(), objective, self.store_ref())
+            .map_err(|_| PathfindError::EndReached(pos.clone()))
+            .map(|path| path.smooth_path_2(self.store_ref()).collect::<Vec<_>>())
+            .or_else(|_| {
+                objective
+                    .to_position(self.store_ref())
+                    .map_err(|_| PathfindError::EndReached(pos.clone()))
+                    .map(|obj| {
+                        vec![
+                            super::generic::pathfinding::PointE { x: pos.x, y: pos.y },
+                            obj,
+                        ]
+                    })
+            })?;
+
+        Ok(Some(build_path(path)))
     }
 }
 
@@ -124,7 +150,23 @@ impl rstar::SelectionFunction<CollisionBox> for UnitRemoval {
         }
     }
 }
-
+fn build_path(
+    result: Vec<impl std::borrow::Borrow<super::generic::pathfinding::PointE>>,
+) -> lyon::path::Path {
+    result
+        .array_windows::<2>()
+        .fold(
+            lyon::path::Path::svg_builder(),
+            |mut builder, [from, to]| {
+                let from = from.borrow();
+                let to = to.borrow();
+                builder.move_to(lyon::math::Point::new(from.x, from.y));
+                builder.line_to(lyon::math::Point::new(to.x, to.y));
+                builder
+            },
+        )
+        .build()
+}
 pub trait EntityMut<'store>: EntityRef<'store> {
     fn store_mut(&self) -> &'store mut EntityStore;
 
@@ -145,6 +187,44 @@ pub trait EntityMut<'store>: EntityRef<'store> {
             position: to,
             guid: self.guid(),
         });
+    }
+
+
+
+    fn pathfind_to_lastest_objective(
+        &self,
+        duration: crate::core::GameTimer,
+    ) -> Result<Option<lyon::math::Point>, PathfindError> {
+        let Some(path) = self.path_to_latest_objective()? else {return Ok(None)};
+        let component = self.pathfinding_component_mut();
+
+        let maxpos = lyon::algorithms::length::approximate_length(path.iter(), 0.1);
+
+        let newpos = if component.position < 0.0 {
+            component.position + (duration.as_secs_f32() * component.speed)
+        } else {
+            duration.as_secs_f32() * component.speed
+        };
+        if newpos >= maxpos {
+            let point = path.last_endpoint().unwrap().0;
+            self.move_to(point);
+            return Err(PathfindError::EndReached(point));
+        }
+        component.position = newpos;
+
+        let mut position = None;
+        let mut pattern = lyon::algorithms::walk::RegularPattern {
+            callback: &mut |event: lyon::algorithms::walk::WalkerEvent| {
+                position = Some(lyon::math::Point::new(event.position.x, event.position.y));
+                false
+            },
+            interval: component.speed as f32,
+        };
+        lyon::algorithms::walk::walk_along_path(path.iter(), component.position, 0.1, &mut pattern);
+        if let Some(point) = position {
+            self.move_to(point);
+        }
+        Ok(position)
     }
 
     fn pathfind_for_duration(

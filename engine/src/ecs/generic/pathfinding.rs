@@ -4,10 +4,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use lyon::{
-    math::Point,
-};
-
+use lyon::math::Point;
 
 use crate::{
     core::{GameTimer, Lane, Team},
@@ -49,6 +46,26 @@ impl Index<(Team, Lane)> for LanePaths {
 pub enum Objective {
     Unit(crate::ecs::UnitId),
     Position(Point),
+}
+
+impl Objective {
+    pub fn to_position(&self, store: &EntityStore) -> Result<PointE, ComputeError> {
+        match self {
+            Objective::Unit(id) => {
+                let point = store
+                    .position
+                    .get(store.get_raw_by_id(*id).unwrap().position)
+                    .ok_or(ComputeError::TargetNotFound)?
+                    .1
+                    .point;
+                Ok(PointE {
+                    x: point.x,
+                    y: point.y,
+                })
+            }
+            Objective::Position(p) => Ok(PointE { x: p.y, y: p.y }),
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -96,6 +113,7 @@ impl<'a> PathfindInstance<'a> {
         match position {
             spade::PositionInTriangulation::OnFace(face) => {
                 let face = self.store.nav.triangulation.cdt.face(face);
+
                 let vertices = face.adjacent_edges().into_iter().filter_map(|edge| {
                     self.store
                         .nav
@@ -113,7 +131,13 @@ impl<'a> PathfindInstance<'a> {
                         .chain(vertices.clone().map(|v| v.position())),
                 ) as Box<dyn Iterator<Item = Point2<f64>>>
             }
-            spade::PositionInTriangulation::OnVertex(v) => {
+            spade::PositionInTriangulation::OnVertex(v)
+                if self
+                    .store
+                    .nav
+                    .triangulation
+                    .keep_vertex(&self.store.nav.triangulation.cdt.vertex(v)) =>
+            {
                 let v = self.store.nav.triangulation.cdt.vertex(v);
                 Box::new(
                     v.as_voronoi_face()
@@ -127,6 +151,7 @@ impl<'a> PathfindInstance<'a> {
                 Box::new(
                     e.vertices()
                         .into_iter()
+                        .filter(|v| self.store.nav.triangulation.keep_vertex(&v))
                         .flat_map(|v| v.as_voronoi_face().adjacent_edges())
                         .flat_map(|edge| edge.as_undirected().vertices())
                         .filter_map(|v| v.position()),
@@ -179,6 +204,13 @@ pub struct PathResult {
     pub result: Vec<PointE>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum ComputeError {
+    TargetNotFound,
+    NoTargetPoints,
+    NoPathFound,
+}
+
 impl PathResult {
     pub fn smooth_path(&self, store: &EntityStore) -> impl Iterator<Item = PointE> {
         use spade::Point2;
@@ -202,6 +234,45 @@ impl PathResult {
                     .cdt
                     .intersects_constraint(prev, next)
                 {
+                    ps.push(init);
+                } else {
+                    ignored.push(p.clone());
+                }
+
+                (ps, p.clone(), ignored)
+            },
+        );
+
+        Box::new(result.into_iter().chain(Some(last)))
+    }
+
+    pub fn smooth_path_2(&self, store: &EntityStore) -> impl Iterator<Item = PointE> {
+        use spade::Point2;
+
+        let mut result = self.result.iter();
+
+        let Some(init) = result.next().cloned() else {return Box::new(std::iter::empty()) as Box<dyn Iterator<Item = PointE>> };
+
+        let (result, last, _) = result.fold(
+            (vec![init], init, vec![]),
+            |(mut ps, init, mut ignored), p| {
+                let prev = ps
+                    .last()
+                    .map(|p| Point2::new(p.x as f64, p.y as f64))
+                    .unwrap();
+                let next = Point2::new(p.x as f64, p.y as f64);
+
+                if store
+                    .nav
+                    .triangulation
+                    .cdt
+                    .intersects_constraint(prev, next)
+                {
+                    let a = PointE {
+                        x: (prev.x - next.x) as f32,
+                        y: (prev.y - next.y) as f32,
+                    };
+
                     ps.extend(
                         ignored
                             .drain(..)
@@ -213,26 +284,32 @@ impl PathResult {
                                     y: chunk.iter().map(|a| a.y).sum::<f32>()
                                         / (chunk.len() as f32),
                                 };
-                                chunk.into_iter().max_by(|a, b| {
-                                    ((a.x - centroid.x).exp2() + (a.y - centroid.y).exp2())
-                                        .total_cmp(
-                                            &((b.x - centroid.x).exp2()
-                                                + (b.y - centroid.y).exp2()),
-                                        )
-                                })
+                                Some(centroid)
                             })
-                            .filter(|p| {
-                                let xy = Point2::new(p.x as f64, p.y as f64);
-
-                                !store.nav.triangulation.cdt.intersects_constraint(prev, xy)
-                                    && !store.nav.triangulation.cdt.intersects_constraint(xy, next)
-                                    && (((p.x as f64) - next.x).exp2()
-                                        + ((p.y as f64) - next.y).exp2()
-                                        + ((p.x as f64) - prev.x).exp2()
-                                        + ((p.y as f64) - prev.y).exp2()
-                                        < 1.5 * ((prev.x as f64) - next.x).exp2()
-                                            + ((prev.y as f64) - next.y).exp2())
-                            }),
+                            .filter(|p: &PointE| {
+                                let line_to = Point2::new(p.x as f64, p.y as f64);
+                                !store
+                                    .nav
+                                    .triangulation
+                                    .cdt
+                                    .intersects_constraint(prev, line_to)
+                                    && !store
+                                        .nav
+                                        .triangulation
+                                        .cdt
+                                        .intersects_constraint(next, line_to)
+                            })
+                            .min_by(|poss: &PointE, poss2| {
+                                let b = PointE {
+                                    x: (prev.x as f32 - poss.x),
+                                    y: (prev.y as f32 - poss.y),
+                                };
+                                let c = PointE {
+                                    x: (prev.x as f32 - poss2.x),
+                                    y: (prev.y as f32 - poss2.y),
+                                };
+                                (a.x * b.x + a.y * b.y).total_cmp(&(a.x * c.x + a.y * c.y))
+                            })
                     );
                     ps.push(init);
                 } else {
@@ -247,35 +324,25 @@ impl PathResult {
     }
 }
 
-pub fn compute_path(from: Point, target: &Objective, store: &EntityStore) -> Option<PathResult> {
+pub fn compute_path(
+    from: Point,
+    target: &Objective,
+    store: &EntityStore,
+) -> Result<PathResult, ComputeError> {
     use spade::{Point2, Triangulation};
-
-    let target_pos = match target {
-        Objective::Unit(id) => {
-            store
-                .position
-                .get(store.get_raw_by_id(*id).unwrap().position)
-                .unwrap()
-                .1
-                .point
-        }
-        Objective::Position(p) => p.clone(),
-    }
-    .cast::<i64>();
 
     let instance = PathfindInstance {
         from: PointE {
             x: from.x as f32,
             y: from.y as f32,
         },
-        to: PointE {
-            x: target_pos.x as f32,
-            y: target_pos.y as f32,
-        },
+        to: target.to_position(store)?,
         store,
     };
 
-    let target_points = instance.get_target_points()?;
+    let target_points = instance
+        .get_target_points()
+        .ok_or(ComputeError::NoTargetPoints)?;
 
     let result = pathfinding::prelude::astar(
         &instance.from,
@@ -283,14 +350,10 @@ pub fn compute_path(from: Point, target: &Objective, store: &EntityStore) -> Opt
         |v| {
             let h = |v: &PointE| -> i64 {
                 ((v.x - instance.to.x) * (v.x - instance.to.x)
-                    + (v.y - instance.to.y) * (v.y - instance.to.y)) as i64
+                    + (v.y - instance.to.y) * (v.y - instance.to.y))
+                    .floor() as i64
             };
-            /*
-            let h = |v: &Point2D<i64, UnknownUnit>| -> i64 {
-                (v.x - target_pos.x).abs() + (v.y - target_pos.y).abs()
-            };
-             */
-            h(v)
+            h(v) / 4
         },
         |v| match store
             .nav
@@ -303,10 +366,11 @@ pub fn compute_path(from: Point, target: &Objective, store: &EntityStore) -> Opt
             }
             _ => false,
         },
-    )?
+    )
+    .ok_or(ComputeError::NoPathFound)?
     .0;
 
-    return Some(PathResult { result });
+    return Ok(PathResult { result });
 }
 
 pub struct PathfindingComponent {

@@ -1,8 +1,4 @@
-use engine::ecs::{
-    entity::EntityRef,
-    generic::pathfinding::{PointE},
-    store::EntityStore,
-};
+use engine::ecs::{entity::EntityRef, generic::pathfinding::PointE, store::EntityStore};
 use iced::widget::canvas::{Cache, Frame, Geometry};
 use libmap::maptri::refined::RefinedTesselation;
 use spade::{Point2, Triangulation};
@@ -67,12 +63,10 @@ pub fn draw_debug(
 
         if flags.contains(DebugFlags::MINION_NAV) {
             for path in store.minions().filter_map(|minion| {
-                let pos = minion.position();
-                let at = Point2::new(pos.x as f64, pos.y as f64);
-                ajd_face_path(&store.nav.triangulation, at)
+                minion.path_to_latest_objective().ok().flatten()
             }) {
                 frame.stroke(
-                    &path,
+                    &unsafe { std::mem::transmute::<_, iced::widget::canvas::Path>(path) },
                     iced::widget::canvas::Stroke::default()
                         .with_color(iced::Color::from_rgb(0.0, 1.0, 0.0))
                         .with_width(1.0),
@@ -104,7 +98,7 @@ pub fn draw_debug(
         frame.scale(scale);
         if let Some(cursor) = cursor {
             use engine::ecs::generic::pathfinding::Objective;
-            let Some(result) = engine::ecs::generic::pathfinding::compute_path(
+            let Ok(result) = engine::ecs::generic::pathfinding::compute_path(
                 lyon::math::Point::new(cursor.x, cursor.y),
                 &Objective::Unit(engine::ecs::entity::EntityBuilder::guid(
                     &engine::ecs::structures::turret::TurretIndex::RED_MID_OUTER,
@@ -113,31 +107,45 @@ pub fn draw_debug(
             ) else { return frames };
 
             fn build_path(result: Vec<impl Borrow<PointE>>) -> iced::widget::canvas::Path {
-                dbg!(result.len());
-                let mut builder = lyon::path::Path::svg_builder();
-                result.array_windows::<2>().for_each(|[from, to]| {
-                    let from = from.borrow();
-                    let to = to.borrow();
-                    builder.move_to(lyon::math::Point::new(from.x, from.y));
-                    builder.line_to(lyon::math::Point::new(to.x, to.y));
-                });
-                unsafe { std::mem::transmute::<_, iced::widget::canvas::Path>(builder.build()) }
+                let path = result
+                    .array_windows::<2>()
+                    .fold(
+                        lyon::path::Path::svg_builder(),
+                        |mut builder, [from, to]| {
+                            let from = from.borrow();
+                            let to = to.borrow();
+                            builder.move_to(lyon::math::Point::new(from.x, from.y));
+                            builder.line_to(lyon::math::Point::new(to.x, to.y));
+                            builder
+                        },
+                    )
+                    .build();
+                unsafe { std::mem::transmute::<_, iced::widget::canvas::Path>(path) }
             }
-
+            
+            frame.stroke(
+                &build_path(result.smooth_path_2(store).collect()),
+                iced::widget::canvas::Stroke::default()
+                    .with_color(iced::Color::from_rgb(0.0, 0.0, 1.0))
+                    .with_width(2.0),
+            );
+             
             frame.stroke(
                 &build_path(result.smooth_path(store).collect()),
                 iced::widget::canvas::Stroke::default()
                     .with_color(iced::Color::from_rgb(1.0, 0.0, 0.0))
                     .with_width(1.0),
             );
-
+            
             frame.stroke(
                 &build_path(result.result.iter().collect()),
                 iced::widget::canvas::Stroke::default()
-                    .with_color(iced::Color::from_rgb(0.0, 0.0, 1.0))
+                    .with_color(iced::Color::from_rgb(0.0, 1.0, 0.0))
                     .with_width(1.0),
             );
+            
             frames.push(frame.into_geometry())
+            
         }
     }
 

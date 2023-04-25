@@ -10,6 +10,11 @@ pub mod core;
 pub mod nav_engine;
 pub mod stats;
 
+use ecs::{
+    entity::{EntityMutCrateExt, EntityRef, EntityRefCrateExt},
+    structures::turret::TurretIndex,
+};
+
 use crate::{
     core::{GameTimer, Lane, Team},
     ecs::{
@@ -80,24 +85,37 @@ impl Engine for MinimapEngine {
 
         // pathfind existing minions
         for minion in store.minions_mut() {
-            match minion.pathfind_for_duration(step) {
+            if minion.pathfinding_component().objectives.len() < 1 {
+                minion.pathfinding_component_mut().add_objective(
+                    ecs::generic::pathfinding::Objective::Unit(ecs::entity::EntityBuilder::guid(
+                        &TurretIndex(
+                            minion.guid().team().unwrap().opposite(),
+                            minion.guid().lane().unwrap(),
+                            turret::TurretKind::Outer,
+                        ),
+                    )),
+                )
+            };
+            match minion.pathfind_to_lastest_objective(step) {
                 Ok(_) => {}
                 Err(PathfindError::EndReached(_)) => {
-                    minion.delete().map(drop).expect("can't delete minion")
+                    minion.pathfinding_component_mut().objectives.pop_front();
+                    minion.delete().map(drop).expect("can't delete minion");
                 }
             }
         }
 
         // spawn new minions
         for spawn_timer in ecs::spawners::wave::timer_to_wave_spawn(self.timer, new_timer) {
-            for (team, lane) in [
+            let lanes = [
                 (Team::Blue, Lane::Top),
                 (Team::Blue, Lane::Mid),
                 (Team::Blue, Lane::Bot),
                 (Team::Red, Lane::Top),
                 (Team::Red, Lane::Mid),
                 (Team::Red, Lane::Bot),
-            ] {
+            ];
+            for (team, lane) in lanes {
                 let mut wave = WaveBuilder::default()
                     .set_lane(lane)
                     .set_team(team)
@@ -152,7 +170,7 @@ impl MinimapEngine {
             timer: GameTimer::GAME_START,
         };
         engine.on_start(&mut store);
-    
+
         let store = store.build();
         (engine, store)
     }
